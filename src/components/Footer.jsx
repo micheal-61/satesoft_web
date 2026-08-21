@@ -71,8 +71,8 @@ function Footer() {
       { label: 'Environmental Sustainability', path: '/environmental' },
     ],
     legal: [
-      { label: 'Privacy Policy', path: '/privacy-policy', condition: privacyPolicy },
-      { label: 'Service Agreement', path: '/service-agreement', condition: serviceAgreement },
+      { label: 'Privacy Policy', path: '/privacy-policy' },
+      { label: 'Service Agreement', path: '/service-agreement' },
       { label: 'Supports', path: '/support' },
     ],
     admin: [

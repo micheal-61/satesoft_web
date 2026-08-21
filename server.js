@@ -97,74 +97,104 @@ const normalizeDate = (value) => {
 
 // Initialize Database
 const initializeDatabase = async () => {
-  let connection;
+  const dbHost = process.env.DB_HOST || 'localhost';
+  const dbPort = process.env.DB_PORT || 3306;
+  const dbUser = process.env.DB_USER || 'root';
+  const dbPassword = process.env.DB_PASSWORD || '';
+  const dbName = process.env.DB_NAME || 'satesoft_db';
 
+  let conn;
+  try {
+    // Connect without database to create DB/user if needed
+    conn = await mysql.createConnection({ host: dbHost, port: dbPort, user: 'root', password: '' });
+    await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+    await conn.query(`CREATE USER IF NOT EXISTS '${dbUser}'@'localhost' IDENTIFIED BY '${dbPassword}'`);
+    await conn.query(`GRANT ALL PRIVILEGES ON \`${dbName}\`.* TO '${dbUser}'@'localhost'`);
+    await conn.query('FLUSH PRIVILEGES');
+    console.log(`✅ Database "${dbName}" and user "${dbUser}" ready`);
+  } catch (err) {
+    console.error('❌ DB setup error:', err.message);
+  } finally {
+    if (conn) await conn.end();
+  }
+
+  // Now connect with the app user to create tables
+  let connection;
   try {
     connection = await pool.getConnection();
+    await connection.query(`USE \`${dbName}\``);
 
     const initTable = async (name, fn) => {
-      try {
-        await fn();
-        console.log(`✅ Table "${name}" initialized`);
-      } catch (err) {
-        console.error(`❌ Table "${name}" init error:`, err.message);
-      }
-    };
+    try {
+      await fn();
+      console.log(`✅ Table "${name}" initialized`);
+    } catch (err) {
+      console.error(`❌ Table "${name}" init error:`, err.message);
+    }
+  };
 
-    // Project Stats Table
-    await initTable('project_stats', async () => {
+  await initTable('project_stats', async () => {
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS project_stats (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        value VARCHAR(255) NOT NULL,
+        description TEXT
+      )
+    `);
+    const [statsRows] = await connection.query('SELECT COUNT(*) as count FROM project_stats');
+    if (statsRows[0].count === 0) {
       await connection.query(`
-        CREATE TABLE IF NOT EXISTS project_stats (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          title VARCHAR(255) NOT NULL,
-          value VARCHAR(255) NOT NULL,
-          description TEXT
-        )
+        INSERT INTO project_stats (title, value, description)
+        VALUES
+        ('Countdown', '186 days', 'Days until completion'),
+        ('Completed', '298 days', 'Days already completed'),
+        ('Total Days', '478 days', 'Total estimated days')
       `);
-      const [statsRows] = await connection.query('SELECT COUNT(*) as count FROM project_stats');
-      if (statsRows[0].count === 0) {
-        await connection.query(`
-          INSERT INTO project_stats (title, value, description)
-          VALUES
-          ('Countdown', '186 days', 'Days until completion'),
-          ('Completed', '298 days', 'Days already completed'),
-          ('Total Days', '478 days', 'Total estimated days')
-        `);
-      }
-    });
+    }
+  });
 
-    // Admin Users Table
-    await initTable('admin_users', async () => {
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS admin_users (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          username VARCHAR(255) UNIQUE NOT NULL,
-          password VARCHAR(255) NOT NULL,
-          email VARCHAR(255) DEFAULT NULL,
-          reset_token VARCHAR(255) DEFAULT NULL,
-          reset_token_expiry DATETIME DEFAULT NULL
-        )
-      `);
-      try {
-        await connection.query('ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS email VARCHAR(255) DEFAULT NULL');
-        await connection.query('ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255) DEFAULT NULL');
-        await connection.query('ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS reset_token_expiry DATETIME DEFAULT NULL');
-      } catch (e) {
-        console.error('Alter table admin_users error:', e.message);
+  await initTable('admin_users', async () => {
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS admin_users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        email VARCHAR(255) DEFAULT NULL,
+        reset_token VARCHAR(255) DEFAULT NULL,
+        reset_token_expiry DATETIME DEFAULT NULL
+      )
+    `);
+    try {
+      await connection.query('ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS email VARCHAR(255) DEFAULT NULL');
+      await connection.query('ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255) DEFAULT NULL');
+      await connection.query('ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS reset_token_expiry DATETIME DEFAULT NULL');
+    } catch (e) {
+      console.error('Alter table admin_users error:', e.message);
+    }
+    const [userRows] = await connection.query('SELECT COUNT(*) as count FROM admin_users');
+    if (userRows[0].count === 0) {
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      await connection.query(
+        'INSERT INTO admin_users (username, password, email) VALUES (?, ?, ?)',
+        ['satesoft', hashedPassword, 'admin@satesoft.com']
+      );
+      console.log('✅ Default admin created (username: satesoft, password: admin123)');
+    } else {
+      // Ensure existing users have proper bcrypt passwords
+      const [users] = await connection.query('SELECT id, username, password FROM admin_users');
+      for (const user of users) {
+        if (!user.password || !String(user.password).startsWith('$2')) {
+          const hashedPassword = await bcrypt.hash('admin123', 10);
+          await connection.query('UPDATE admin_users SET password = ? WHERE id = ?', [hashedPassword, user.id]);
+          console.log(`✅ Updated password for user "${user.username}" to admin123`);
+        }
       }
-      const [userRows] = await connection.query('SELECT COUNT(*) as count FROM admin_users');
-      if (userRows[0].count === 0) {
-        const hashedPassword = await bcrypt.hash('admin', 10);
-        await connection.query(
-          'INSERT INTO admin_users (username, password, email) VALUES (?, ?, ?)',
-          ['admin', hashedPassword, 'admin@satesoft.com']
-        );
-        console.log('✅ Default admin created (username: admin, password: admin)');
-      }
-    });
+    }
+  });
 
-    // Products Table
-    await initTable('product_cards', async () => {
+  // Products Table
+  await initTable('product_cards', async () => {
       await connection.query(`
         CREATE TABLE IF NOT EXISTS product_cards (
           id INT AUTO_INCREMENT PRIMARY KEY,
@@ -193,8 +223,8 @@ const initializeDatabase = async () => {
       }
     });
 
-    // Partners Table
-    await initTable('partners', async () => {
+  // Partners Table
+  await initTable('partners', async () => {
       await connection.query(`
         CREATE TABLE IF NOT EXISTS partners (
           id INT AUTO_INCREMENT PRIMARY KEY,
@@ -220,8 +250,8 @@ const initializeDatabase = async () => {
       }
     });
 
-    // Advisors Table
-    await initTable('advisors', async () => {
+  // Advisors Table
+  await initTable('advisors', async () => {
       await connection.query(`
         CREATE TABLE IF NOT EXISTS advisors (
           id INT AUTO_INCREMENT PRIMARY KEY,
@@ -235,6 +265,7 @@ const initializeDatabase = async () => {
           bio TEXT DEFAULT NULL,
           email VARCHAR(255) DEFAULT NULL,
           expertise VARCHAR(255) DEFAULT NULL,
+          category VARCHAR(100) DEFAULT 'board',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
@@ -244,7 +275,54 @@ const initializeDatabase = async () => {
       await connection.query('ALTER TABLE advisors ADD COLUMN IF NOT EXISTS profile_link VARCHAR(500) DEFAULT NULL');
       await connection.query('ALTER TABLE advisors ADD COLUMN IF NOT EXISTS email VARCHAR(255) DEFAULT NULL');
       await connection.query('ALTER TABLE advisors ADD COLUMN IF NOT EXISTS expertise VARCHAR(255) DEFAULT NULL');
+      await connection.query("ALTER TABLE advisors ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT 'board'");
       const [advisorRows] = await connection.query('SELECT COUNT(*) as count FROM advisors');
+    });
+
+  // Milestones Table
+  await initTable('milestones', async () => {
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS milestones (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          year VARCHAR(10) NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          description TEXT DEFAULT NULL,
+          color VARCHAR(7) DEFAULT '#72bf24',
+          display_order INT DEFAULT 0,
+          icon VARCHAR(100) DEFAULT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
+      await connection.query('ALTER TABLE milestones ADD COLUMN IF NOT EXISTS icon VARCHAR(100) DEFAULT NULL');
+      const [milestoneRows] = await connection.query('SELECT COUNT(*) as count FROM milestones');
+      if (milestoneRows[0].count === 0) {
+        await connection.query(`
+          INSERT INTO milestones (year, title, description, color, display_order, icon) VALUES
+          ('1978', 'LIOREM SUMARIS', 'Lorem ipsum dolor sit amet consectetuer odio non tellus natoque accumsan. Sed hae in enim ne remaia teston na vas.', '#72bf24', 0, 'fa-solid fa-lightbulb'),
+          ('1983', 'ENE BENELE', 'Lorem ipsum dolor sit amet consectetuer odio non tellus natoque accumsan. Sed hae in enim ne remaia teston na vas.', '#72bf24', 1, 'fa-solid fa-users'),
+          ('1996', 'SUNA SIPUM ENI', 'Rumalesuada eleifend ultrices justa Curabitur Maecenas orci. Tincidunt adipiscing elit et at tincidunt elit nulla mauris eleifend.', '#72bf24', 2, 'fa-solid fa-globe'),
+          ('2012', 'LAST SICHR SCR', 'Auctor Sed urna dignissim, malesuada eleifend ultrices justo Curabitur Maecenas orci. Tincidunt adipiscing elit et at tincidunt.', '#72bf24', 3, 'fa-solid fa-rocket'),
+          ('2021', 'KASTROL NATO', 'Lorem ipsum dolor sit amet consectetuer odio non tellus natoque accumsan. Sed hae in enim ne remaia teston na vas.', '#72bf24', 4, 'fa-solid fa-chart-line')
+        `);
+      }
+    });
+
+  // Milestone Activities Table
+  await initTable('milestone_activities', async () => {
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS milestone_activities (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          milestone_id INT NOT NULL,
+          month VARCHAR(50) NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          description TEXT DEFAULT NULL,
+          display_order INT DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (milestone_id) REFERENCES milestones(id) ON DELETE CASCADE
+        )
+      `);
     });
 
     // News Posts Table
@@ -442,6 +520,17 @@ const initializeDatabase = async () => {
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
       `);
+      const [contactRows] = await connection.query('SELECT COUNT(*) as count FROM contacts');
+      if (contactRows[0].count === 0) {
+        await connection.query(`
+          INSERT INTO contacts (contact_point, purpose_context, section, category) VALUES
+          ('https://facebook.com/satesoft', 'Follow us on Facebook', 'footer', 'social_media'),
+          ('https://twitter.com/satesoft', 'Follow us on Twitter', 'footer', 'social_media'),
+          ('https://instagram.com/satesoft', 'Follow us on Instagram', 'footer', 'social_media'),
+          ('https://linkedin.com/company/satesoft', 'Connect on LinkedIn', 'footer', 'social_media'),
+          ('https://github.com/satesoft', 'View our GitHub', 'footer', 'social_media')
+        `);
+      }
     });
 
     // Jurisdictions Table
@@ -507,8 +596,8 @@ const initializeDatabase = async () => {
     }
 
     console.log('✅ Database initialization complete');
-  } catch (error) {
-    console.error('❌ Database initialization error:', error);
+  } catch (err) {
+    console.error('❌ Database initialization error:', err);
   } finally {
     if (connection) connection.release();
   }
@@ -1235,6 +1324,7 @@ app.get('/api/advisors', async (req, res) => {
         bio: row.bio,
         email: row.email,
         expertise: row.expertise,
+        category: row.category || 'board',
       };
     }));
   } catch (error) {
@@ -1243,17 +1333,47 @@ app.get('/api/advisors', async (req, res) => {
   }
 });
 
+app.get('/api/advisors/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query('SELECT * FROM advisors WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Advisor not found.' });
+    }
+    const row = rows[0];
+    const isActiveRaw = row.is_active;
+    const isActive = Buffer.isBuffer(isActiveRaw) ? isActiveRaw[0] === 1 : Number(isActiveRaw) === 1;
+    res.json({
+      id: row.id,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      roleId: row.role_id,
+      order: row.advisor_order,
+      isActive,
+      imageUrl: row.image_url || null,
+      profileLink: row.profile_link || null,
+      bio: row.bio,
+      email: row.email,
+      expertise: row.expertise,
+      category: row.category || 'board',
+    });
+  } catch (error) {
+    console.error('❌ Get Advisor Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 app.post('/api/advisors', async (req, res) => {
   try {
-    const { firstName, lastName, roleId, advisorOrder, email, expertise, bio, imageUrl, profileLink, isActive } = req.body;
+    const { firstName, lastName, roleId, advisorOrder, email, expertise, bio, imageUrl, profileLink, isActive, category } = req.body;
     if (!firstName) {
       return res.status(400).json({ error: 'First name is required.' });
     }
     const [result] = await pool.query(
-      'INSERT INTO advisors (first_name, last_name, role_id, advisor_order, is_active, image_url, profile_link, bio, email, expertise) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [firstName, lastName || null, roleId || 0, advisorOrder || 0, isActive ? 1 : 1, normalizeImageUrl(imageUrl), profileLink || null, bio || null, email || null, expertise || null]
+      'INSERT INTO advisors (first_name, last_name, role_id, advisor_order, is_active, image_url, profile_link, bio, email, expertise, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [firstName, lastName || null, roleId || 0, advisorOrder || 0, isActive ? 1 : 1, normalizeImageUrl(imageUrl), profileLink || null, bio || null, email || null, expertise || null, category || 'board']
     );
-    res.status(201).json({ id: result.insertId, firstName, lastName, roleId: roleId || 0, order: advisorOrder || 0, isActive: isActive ? true : true, imageUrl: imageUrl || null, profileLink: profileLink || null, bio: bio || null, email: email || null, expertise: expertise || null });
+    res.status(201).json({ id: result.insertId, firstName, lastName, roleId: roleId || 0, order: advisorOrder || 0, isActive: isActive ? true : true, imageUrl: imageUrl || null, profileLink: profileLink || null, bio: bio || null, email: email || null, expertise: expertise || null, category: category || 'board' });
   } catch (error) {
     console.error('❌ Add Advisor Error:', error);
     res.status(500).json({ error: 'Internal server error.' });
@@ -1263,15 +1383,15 @@ app.post('/api/advisors', async (req, res) => {
 app.put('/api/advisors/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, roleId, advisorOrder, email, expertise, bio, imageUrl, profileLink, isActive } = req.body;
+    const { firstName, lastName, roleId, advisorOrder, email, expertise, bio, imageUrl, profileLink, isActive, category } = req.body;
     if (!firstName) {
       return res.status(400).json({ error: 'First name is required.' });
     }
     await pool.query(
-      'UPDATE advisors SET first_name = ?, last_name = ?, role_id = ?, advisor_order = ?, is_active = ?, image_url = ?, profile_link = ?, bio = ?, email = ?, expertise = ? WHERE id = ?',
-      [firstName, lastName || null, roleId || 0, advisorOrder || 0, isActive ? 1 : 0, normalizeImageUrl(imageUrl), profileLink || null, bio || null, email || null, expertise || null, id]
+      'UPDATE advisors SET first_name = ?, last_name = ?, role_id = ?, advisor_order = ?, is_active = ?, image_url = ?, profile_link = ?, bio = ?, email = ?, expertise = ?, category = ? WHERE id = ?',
+      [firstName, lastName || null, roleId || 0, advisorOrder || 0, isActive ? 1 : 0, normalizeImageUrl(imageUrl), profileLink || null, bio || null, email || null, expertise || null, category || 'board', id]
     );
-    res.json({ id: Number(id), firstName, lastName, roleId: roleId || 0, order: advisorOrder || 0, isActive: isActive ? true : false, imageUrl: imageUrl || null, profileLink: profileLink || null, bio: bio || null, email: email || null, expertise: expertise || null });
+    res.json({ id: Number(id), firstName, lastName, roleId: roleId || 0, order: advisorOrder || 0, isActive: isActive ? true : false, imageUrl: imageUrl || null, profileLink: profileLink || null, bio: bio || null, email: email || null, expertise: expertise || null, category: category || 'board' });
   } catch (error) {
     console.error('❌ Update Advisor Error:', error);
     res.status(500).json({ error: 'Internal server error.' });
@@ -1285,6 +1405,189 @@ app.delete('/api/advisors/:id', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('❌ Delete Advisor Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// ======================
+// MILESTONE ENDPOINTS
+// ======================
+
+app.get('/api/milestones', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM milestones ORDER BY display_order, id');
+    res.json(rows.map((row) => ({
+      id: row.id,
+      year: row.year,
+      title: row.title,
+      description: row.description,
+      color: row.color || '#72bf24',
+      displayOrder: row.display_order,
+      icon: row.icon || '',
+    })));
+  } catch (error) {
+    console.error('❌ List Milestones Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+app.get('/api/milestones/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query('SELECT * FROM milestones WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Milestone not found.' });
+    }
+    const row = rows[0];
+    res.json({
+      id: row.id,
+      year: row.year,
+      title: row.title,
+      description: row.description,
+      color: row.color || '#72bf24',
+      displayOrder: row.display_order,
+      icon: row.icon || '',
+    });
+  } catch (error) {
+    console.error('❌ Get Milestone Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+app.post('/api/milestones', async (req, res) => {
+  try {
+    const { year, title, description, color, displayOrder, icon } = req.body;
+    if (!year || !title) {
+      return res.status(400).json({ error: 'Year and title are required.' });
+    }
+    const [result] = await pool.query(
+      'INSERT INTO milestones (year, title, description, color, display_order, icon) VALUES (?, ?, ?, ?, ?, ?)',
+      [year, title, description || null, color || '#72bf24', displayOrder || 0, icon || null]
+    );
+    res.status(201).json({ id: result.insertId, year, title, description: description || null, color: color || '#72bf24', displayOrder: displayOrder || 0, icon: icon || '' });
+  } catch (error) {
+    console.error('❌ Add Milestone Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+app.put('/api/milestones/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { year, title, description, color, displayOrder, icon } = req.body;
+    if (!year || !title) {
+      return res.status(400).json({ error: 'Year and title are required.' });
+    }
+    await pool.query(
+      'UPDATE milestones SET year = ?, title = ?, description = ?, color = ?, display_order = ?, icon = ? WHERE id = ?',
+      [year, title, description || null, color || '#72bf24', displayOrder || 0, icon || null, id]
+    );
+    res.json({ id: Number(id), year, title, description: description || null, color: color || '#72bf24', displayOrder: displayOrder || 0, icon: icon || '' });
+  } catch (error) {
+    console.error('❌ Update Milestone Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+app.delete('/api/milestones/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM milestones WHERE id = ?', [id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Delete Milestone Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+app.get('/api/milestones/:milestoneId/activities/:activityId', async (req, res) => {
+  console.log('GET /api/milestones/:milestoneId/activities/:activityId hit', req.params);
+  try {
+    const { milestoneId, activityId } = req.params;
+    const [rows] = await pool.query('SELECT * FROM milestone_activities WHERE id = ? AND milestone_id = ?', [activityId, milestoneId]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Activity not found.' });
+    }
+    const row = rows[0];
+    res.json({
+      id: row.id,
+      milestoneId: row.milestone_id,
+      month: row.month,
+      title: row.title,
+      description: row.description,
+      displayOrder: row.display_order,
+    });
+  } catch (error) {
+    console.error('❌ Get Activity Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// ======================
+// MILESTONE ACTIVITY ENDPOINTS
+// ======================
+
+app.get('/api/milestones/:id/activities', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query('SELECT * FROM milestone_activities WHERE milestone_id = ? ORDER BY display_order, id', [id]);
+    res.json(rows.map((row) => ({
+      id: row.id,
+      milestoneId: row.milestone_id,
+      month: row.month,
+      title: row.title,
+      description: row.description,
+      displayOrder: row.display_order,
+    })));
+  } catch (error) {
+    console.error('❌ List Milestone Activities Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+app.post('/api/milestones/:id/activities', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { month, title, description, displayOrder } = req.body;
+    if (!month || !title) {
+      return res.status(400).json({ error: 'Month and title are required.' });
+    }
+    const [result] = await pool.query(
+      'INSERT INTO milestone_activities (milestone_id, month, title, description, display_order) VALUES (?, ?, ?, ?, ?)',
+      [id, month, title, description || null, displayOrder || 0]
+    );
+    res.status(201).json({ id: result.insertId, milestoneId: Number(id), month, title, description: description || null, displayOrder: displayOrder || 0 });
+  } catch (error) {
+    console.error('❌ Add Milestone Activity Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+app.put('/api/milestone-activities/:activityId', async (req, res) => {
+  try {
+    const { activityId } = req.params;
+    const { month, title, description, displayOrder } = req.body;
+    if (!month || !title) {
+      return res.status(400).json({ error: 'Month and title are required.' });
+    }
+    await pool.query(
+      'UPDATE milestone_activities SET month = ?, title = ?, description = ?, display_order = ? WHERE id = ?',
+      [month, title, description || null, displayOrder || 0, activityId]
+    );
+    res.json({ id: Number(activityId), month, title, description: description || null, displayOrder: displayOrder || 0 });
+  } catch (error) {
+    console.error('❌ Update Milestone Activity Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+app.delete('/api/milestone-activities/:activityId', async (req, res) => {
+  try {
+    const { activityId } = req.params;
+    await pool.query('DELETE FROM milestone_activities WHERE id = ?', [activityId]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Delete Milestone Activity Error:', error);
     res.status(500).json({ error: 'Internal server error.' });
   }
 });

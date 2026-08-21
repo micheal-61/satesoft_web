@@ -34,6 +34,9 @@ import Environmental from "./pages/website/Environmental";
 import PrivacyPolicy from "./pages/website/PrivacyPolicy";
 import ServiceAgreement from "./pages/website/ServiceAgreement";
 import Support from "./pages/website/Support";
+import MilestoneDetail from "./pages/website/MilestoneDetail";
+import ActivityDetail from "./pages/website/ActivityDetail";
+import AdvisorDetail from "./pages/website/AdvisorDetail";
 
 // --- Admin CMS ---
 import RaincloudDashboard from "./pages/admin/RaincloudDashboard";
@@ -106,6 +109,7 @@ export const routesConfig = [
       { path: "contact", element: <Contact /> },
       { path: "blog", element: <Blog /> },
       { path: "board", element: <Board /> },
+      { path: "board/:id", element: <AdvisorDetail /> },
       { path: "opportunities", element: <Opportunities /> },
       { path: "opportunities/:id", element: <OpportunityDetails /> },
       { path: "opportunities/:id/apply", element: <OpportunityApplication /> },
@@ -119,6 +123,8 @@ export const routesConfig = [
       { path: "privacy-policy", element: <PrivacyPolicy /> },
       { path: "service-agreement", element: <ServiceAgreement /> },
       { path: "support", element: <Support /> },
+      { path: "milestone/:id", element: <MilestoneDetail /> },
+      { path: "milestone/:milestoneId/activity/:activityId", element: <ActivityDetail /> },
     ],
   },
 

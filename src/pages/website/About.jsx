@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaArrowRight, FaCloud, FaUsers, FaRocket, FaShieldAlt, FaChartLine, FaGlobe, FaLightbulb, FaCheckCircle, FaAward, FaHandshake, FaCode, FaDatabase, FaServer, FaLock, FaBuilding } from "react-icons/fa";
+import { FaArrowLeft, FaArrowRight, FaCloud, FaUsers, FaRocket, FaShieldAlt, FaChartLine, FaGlobe, FaLightbulb, FaCheckCircle, FaAward, FaHandshake, FaCode, FaDatabase, FaServer, FaLock, FaBuilding } from "react-icons/fa";
 
 const About = () => {
   const [isVisible, setIsVisible] = useState({});
+  const [milestones, setMilestones] = useState([]);
+  const [loadingMilestones, setLoadingMilestones] = useState(true);
   const sectionRef = useRef(null);
 
   // Intersection Observer for scroll animations
@@ -23,6 +25,25 @@ const About = () => {
     elements.forEach((el) => observer.observe(el));
 
     return () => observer.disconnect();
+  }, []);
+
+  // Fetch milestones from API
+  useEffect(() => {
+    const fetchMilestones = async () => {
+      try {
+        const res = await fetch('/api/milestones');
+        if (res.ok) {
+          const data = await res.json();
+          const sorted = data.sort((a, b) => Number(b.year) - Number(a.year));
+          setMilestones(sorted);
+        }
+      } catch (err) {
+        console.error('Failed to fetch milestones:', err);
+      } finally {
+        setLoadingMilestones(false);
+      }
+    };
+    fetchMilestones();
   }, []);
 
   // Company stats
@@ -52,12 +73,6 @@ const About = () => {
   ];
 
   // Milestones
-  const milestones = [
-    { year: '2018', title: 'Company Founded', description: 'Satesoft was established with a vision to transform African businesses.' },
-    { year: '2020', title: 'First Major Client', description: 'Secured partnership with a leading enterprise corporation.' },
-    { year: '2022', title: 'Pan-African Expansion', description: 'Expanded operations across multiple African countries.' },
-    { year: '2024', title: 'Innovation Hub Launch', description: 'Opened state-of-the-art innovation and R&D center.' },
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -183,8 +198,8 @@ const About = () => {
               </div>
               
               <h2 className="text-3xl md:text-4xl font-light text-gray-900 mb-4 leading-tight">
-                Your Innovation <br />
-                <span className="font-semibold text-[#72bf24]">Partner.</span>
+                Your Innovation Partner
+              
               </h2>
               
               <div className="space-y-4 text-gray-600 leading-relaxed">
@@ -341,50 +356,7 @@ const About = () => {
       {/* ============================================================
           MILESTONES TIMELINE
           ============================================================ */}
-      <section className="bg-white border-t border-gray-100 py-20 md:py-28">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-20">
-          <div className="text-center max-w-3xl mx-auto mb-16 animate-on-scroll" data-id="milestones-title">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#72bf24]/10 border border-[#72bf24]/20 rounded-full text-[#72bf24] text-sm font-medium mb-4">
-              <FaRocket className="text-[#72bf24]" />
-              Our Journey
-            </div>
-            <h2 className="text-3xl md:text-4xl font-light text-gray-900 mb-4">
-              From <span className="font-semibold text-[#72bf24]">Startup</span> to Industry Leader
-            </h2>
-          </div>
-
-          <div className="relative">
-            {/* Timeline line */}
-            <div className="absolute left-1/2 -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-[#72bf24]/30 to-[#72bf24]/10"></div>
-            
-            <div className="space-y-12">
-              {milestones.map((milestone, index) => (
-                <div 
-                  key={index} 
-                  className={`relative flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-12 ${
-                    index % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'
-                  } animate-on-scroll`}
-                  data-id={`milestone-${index}`}
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  {/* Timeline dot */}
-                  <div className="absolute left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-[#72bf24] border-4 border-white shadow-md z-10"></div>
-                  
-                  <div className={`w-full md:w-5/12 text-center md:text-${index % 2 === 0 ? 'right' : 'left'}`}>
-                    <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 hover:border-[#72bf24]/30 hover:shadow-lg transition-all duration-300">
-                      <div className="text-2xl font-bold text-[#72bf24] mb-2">{milestone.year}</div>
-                      <h4 className="font-semibold text-gray-800">{milestone.title}</h4>
-                      <p className="text-sm text-gray-500 font-light mt-1">{milestone.description}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="hidden md:block w-5/12"></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+      
 
       {/* ============================================================
           CTA SECTION - Professional Gradient
@@ -424,6 +396,314 @@ const About = () => {
           </div>
         </div>
       </section>
+      {/* ============================================================
+    OUR JOURNEY - INFOGRAPHIC TIMELINE
+    ============================================================ */}
+<section className="bg-white border-t border-gray-100 py-12 md:py-16 overflow-hidden">
+  <div className="container mx-auto px-4 sm:px-6 lg:px-20">
+
+    {/* Header */}
+    <div
+      className="text-center max-w-3xl mx-auto mb-12 animate-on-scroll"
+      data-id="milestones-title"
+    >
+      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#72bf24]/10 border border-[#72bf24]/20 rounded-full text-[#72bf24] text-xs font-medium mb-3">
+        <FaRocket className="text-[#72bf24] text-xs" />
+        Our Journey
+      </div>
+
+      <h2 className="text-2xl md:text-3xl font-light text-gray-900 mb-3">
+        From <span className="font-semibold text-[#72bf24]">Startup</span> to Industry Leader
+      </h2>
+
+      <p className="text-sm text-gray-500 font-light">
+        A visual timeline highlighting our growth, innovation and transformation.
+      </p>
+    </div>
+
+    {(() => {
+      const timelineIcons = [
+        "fa-solid fa-lightbulb",
+        "fa-solid fa-users",
+        "fa-solid fa-globe",
+        "fa-solid fa-rocket",
+        "fa-solid fa-chart-line",
+      ];
+
+      const colors = [
+        "#ef4444",
+        "#f97316",
+        "#eab308",
+        "#84cc16",
+        "#0ea5e9",
+      ];
+
+      const [currentSlide, setCurrentSlide] = useState(0);
+      const [isPaused, setIsPaused] = useState(false);
+      const totalSlides = Math.ceil(milestones.length / 5);
+
+      useEffect(() => {
+        if (milestones.length <= 5 || isPaused) return;
+        const timer = setInterval(() => {
+          setCurrentSlide((prev) => (prev + 1) % totalSlides);
+        }, 5000);
+        return () => clearInterval(timer);
+      }, [milestones.length, isPaused, totalSlides]);
+
+      const getCurrentMilestones = () => {
+        const start = currentSlide * 5;
+        return milestones.slice(start, start + 5);
+      };
+
+      return (
+        <>
+          {/* ======================================================
+              DESKTOP TIMELINE
+              ====================================================== */}
+          <div className="hidden xl:block" onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)}>
+
+            {/* Icons */}
+            <div className="grid grid-cols-5 gap-4 mb-4">
+              {getCurrentMilestones().map((milestone, index) => {
+                const iconClass = milestone.icon || timelineIcons[index % timelineIcons.length];
+                const color = milestone.color || colors[index % colors.length];
+
+                return (
+                 <div
+                   key={milestone.id || index}
+                   className="text-center carousel-item"
+                   data-id={`timeline-icon-${index}`}
+                   style={{ animationDelay: `${index * 0.08}s` }}
+                 >
+                    <i
+                      className={`${iconClass} mx-auto text-xl mb-2 font-light`}
+                      style={{
+                        color: color,
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Years */}
+            <div className="grid grid-cols-5 gap-4 mb-6">
+              {getCurrentMilestones().map((milestone, index) => {
+                const color = milestone.color || colors[index % colors.length];
+                return (
+                  <div
+                    key={milestone.id || index}
+                    className="text-center carousel-item"
+                    style={{ animationDelay: `${index * 0.08}s` }}
+                  >
+                    <div
+                      className="text-xl font-light"
+                      style={{
+                        color: color,
+                      }}
+                    >
+                      {milestone.year}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Timeline Axis */}
+            <div className="relative mb-12">
+
+              <div className="absolute top-2 left-0 right-0 h-[2px] bg-gray-300"></div>
+
+              <div className="grid grid-cols-5 gap-4 relative z-10">
+                {getCurrentMilestones().map((milestone, index) => {
+                  const color = milestone.color || colors[index % colors.length];
+                  return (
+                    <div
+                      key={milestone.id || index}
+                      className="flex justify-center"
+                    >
+                      <div
+                        className="w-4 h-4 rounded-full bg-white border-[3px]"
+                        style={{
+                          borderColor: color,
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Cards */}
+            <div className="grid grid-cols-5 gap-4">
+
+              {getCurrentMilestones().map((milestone, index) => {
+                const color = milestone.color || colors[index % colors.length];
+                return (
+                  <div
+                    key={milestone.id || index}
+                    className="relative h-full carousel-item"
+                    data-id={`milestone-card-${index}`}
+                    style={{ animationDelay: `${index * 0.08}s` }}
+                  >
+
+                    {/* Connector */}
+                    <div
+                      className="absolute -top-12 left-1/2 -translate-x-1/2 w-[2px] h-12"
+                      style={{
+                        backgroundColor: color,
+                      }}
+                    />
+
+                     {/* Card */}
+                       <Link
+                         to={`/milestone/${milestone.id}`}
+                         className="block h-full bg-white rounded-lg border border-gray-200 shadow hover:shadow-md hover:border-[#72bf24]/40 transition-all duration-300 flex flex-col cursor-pointer group border-r-2 border-b-2"
+                         style={{ borderRightColor: color, borderBottomColor: color }}
+                       >
+  
+                        {/* Title */}
+                        <div
+                          className="px-3 py-2 border-b"
+                          style={{
+                            borderColor: `${color}30`,
+                          }}
+                        >
+                          <h3
+                            className="font-semibold uppercase text-xs tracking-wide group-hover:text-[#72bf24] transition-colors"
+                            style={{
+                              color: color,
+                            }}
+                          >
+                            {milestone.title}
+                          </h3>
+                        </div>
+  
+                        {/* Content */}
+                        <div className="p-3 flex-1">
+                          <p className="text-xs text-gray-600 leading-relaxed line-clamp-4">
+                            {milestone.description}
+                          </p>
+                         </div>
+                       </Link>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Navigation Dots & Arrows */}
+            {totalSlides > 1 && (
+              <div className="flex items-center justify-center gap-3 mt-6">
+                <button
+                  onClick={() => setCurrentSlide((prev) => (prev === 0 ? totalSlides - 1 : prev - 1))}
+                  className="p-1.5 rounded-full bg-white border border-gray-200 shadow hover:shadow-md text-gray-600 hover:text-[#72bf24] transition-all duration-300"
+                  aria-label="Previous slide"
+                >
+                  <FaArrowLeft />
+                </button>
+                <div className="flex items-center gap-1.5">
+                  {Array.from({ length: totalSlides }).map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentSlide(index)}
+                      className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                        currentSlide === index
+                          ? 'bg-[#72bf24] scale-125'
+                          : 'bg-gray-300 hover:bg-gray-400'
+                      }`}
+                      aria-label={`Go to slide ${index + 1}`}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={() => setCurrentSlide((prev) => (prev + 1) % totalSlides)}
+                  className="p-1.5 rounded-full bg-white border border-gray-200 shadow hover:shadow-md text-gray-600 hover:text-[#72bf24] transition-all duration-300"
+                  aria-label="Next slide"
+                >
+                  <FaArrowRight />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ======================================================
+              TABLET + MOBILE TIMELINE
+              ====================================================== */}
+          <div className="xl:hidden">
+
+            <div className="relative ml-5">
+
+              <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gray-200"></div>
+
+              {milestones.map((milestone, index) => {
+                const Icon = timelineIcons[index % timelineIcons.length];
+                const color = milestone.color || colors[index % colors.length];
+
+                return (
+                   <div
+                     key={milestone.id || index}
+                     className="relative pl-8 mb-8 carousel-item"
+                     data-id={`mobile-milestone-${index}`}
+                     style={{ animationDelay: `${index * 0.1}s` }}
+                   >
+
+                    {/* Node */}
+                    <div
+                      className="absolute left-0 top-1.5 w-4 h-4 rounded-full border-[3px] bg-white"
+                      style={{
+                        borderColor: color,
+                      }}
+                    />
+
+                    <div className="flex items-center gap-2 mb-2">
+                      <i
+                        className={`${milestone.icon || timelineIcons[index % timelineIcons.length]} text-lg`}
+                        style={{
+                          color: color,
+                        }}
+                      />
+
+                      <span
+                        className="font-light text-lg"
+                        style={{
+                          color: color,
+                        }}
+                      >
+                        {milestone.year}
+                      </span>
+                    </div>
+
+                     <Link
+                        to={`/milestone/${milestone.id}`}
+                        className="block bg-white rounded-lg border border-gray-200 shadow overflow-hidden cursor-pointer hover:shadow-md hover:border-[#72bf24]/40 transition-all duration-300 group border-r-2 border-b-2 h-full"
+                        style={{ borderRightColor: color, borderBottomColor: color, minHeight: '110px' }}
+                      >
+  
+                        <div className="p-4">
+                          <h3
+                            className="font-semibold uppercase text-xs mb-2 group-hover:text-[#72bf24] transition-colors"
+                            style={{
+                              color: color,
+                            }}
+                          >
+                            {milestone.title}
+                          </h3>
+  
+                          <p className="text-xs text-gray-600 leading-relaxed">
+                            {milestone.description}
+                          </p>
+                         </div>
+                      </Link>
+                   </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      );
+    })()}
+  </div>
+</section>
 
       {/* ============================================================
           CSS ANIMATIONS
@@ -464,10 +744,26 @@ const About = () => {
           animation: fadeInUp 0.6s ease-out forwards;
         }
         
-        .animate-scroll {
-          animation: scrollDown 1.5s ease-in-out infinite;
-        }
-      `}</style>
+         .animate-scroll {
+           animation: scrollDown 1.5s ease-in-out infinite;
+         }
+
+         @keyframes carouselFadeIn {
+           from {
+             opacity: 0;
+             transform: translateY(12px);
+           }
+           to {
+             opacity: 1;
+             transform: translateY(0);
+           }
+         }
+
+         .carousel-item {
+           opacity: 0;
+           animation: carouselFadeIn 0.8s ease-out forwards;
+         }
+       `}</style>
     </div>
   );
 };

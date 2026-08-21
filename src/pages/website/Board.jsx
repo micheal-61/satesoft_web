@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { 
   FaArrowLeft, FaSearch, FaEnvelope, FaLinkedin, FaTwitter, 
-  FaUser, FaBriefcase, FaAward, FaUsers, FaChevronRight
+  FaUser, FaBriefcase, FaUsers, FaChevronRight, FaBuilding,
+  FaQuoteLeft, FaQuoteRight, FaStar, FaHeart, FaLightbulb
 } from "react-icons/fa";
 
 const Board = () => {
@@ -10,7 +11,7 @@ const Board = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterRole, setFilterRole] = useState("All");
+  const [activeCategory, setActiveCategory] = useState("board");
 
   useEffect(() => {
     const fetchAdvisors = async () => {
@@ -38,12 +39,6 @@ const Board = () => {
     return roles[roleId] || 'Advisor';
   };
 
-  // Get unique roles for filter
-  const roles = useMemo(() => {
-    const roleSet = new Set(advisors.map(a => getRoleName(a.roleId)));
-    return ['All', ...roleSet];
-  }, [advisors]);
-
   const getRoleColor = (roleId) => {
     const colors = {
       1: 'bg-[#72bf24]/10 text-[#72bf24] border-[#72bf24]/20',
@@ -57,16 +52,18 @@ const Board = () => {
   const filteredAdvisors = advisors.filter(adv => {
     const fullName = `${adv.firstName || ''} ${adv.lastName || ''}`.trim().toLowerCase();
     const roleName = getRoleName(adv.roleId).toLowerCase();
+    const category = (adv.category || 'board').toLowerCase();
     const query = searchQuery.toLowerCase();
+    
     const matchesSearch = !searchQuery || 
       fullName.includes(query) ||
       roleName.includes(query) ||
       (adv.bio && adv.bio.toLowerCase().includes(query)) ||
       (adv.expertise && adv.expertise.toLowerCase().includes(query));
     
-    const matchesRole = filterRole === "All" || getRoleName(adv.roleId) === filterRole;
+    const matchesCategory = category === activeCategory;
     
-    return adv.isActive !== false && matchesSearch && matchesRole;
+    return adv.isActive !== false && matchesSearch && matchesCategory;
   });
 
   if (loading) {
@@ -77,7 +74,7 @@ const Board = () => {
             <div className="absolute inset-0 border-4 border-gray-200 rounded-full"></div>
             <div className="absolute inset-0 border-4 border-[#72bf24] border-t-transparent rounded-full animate-spin"></div>
           </div>
-          <p className="mt-4 text-gray-500 font-light animate-pulse">Loading board members...</p>
+          <p className="mt-4 text-gray-500 font-light animate-pulse">Loading leadership team...</p>
         </div>
       </section>
     );
@@ -101,6 +98,57 @@ const Board = () => {
     );
   }
 
+  const renderMemberCard = (member, index) => {
+    const fullName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+    const roleName = getRoleName(member.roleId);
+    const roleColor = getRoleColor(member.roleId);
+    const messageLabel = `Message from ${member.firstName || 'member'}`;
+    
+    return (
+      <div 
+        key={member.id} 
+        className="group relative bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
+        style={{ animationDelay: `${index * 0.08}s` }}
+      >
+        {/* Animated gradient border effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#72bf24]/0 via-[#72bf24]/10 to-[#72bf24]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+        
+        {/* Content */}
+        <div className="p-6 md:p-8 flex flex-col relative">
+          <div className="flex-1">
+            <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2 group-hover:text-[#72bf24] transition-colors">
+              {fullName}
+            </h3>
+            
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${roleColor} mb-4`}>
+              <FaBriefcase className="text-xs" />
+              {roleName}
+            </div>
+            
+            {member.bio && (
+              <div className="relative">
+                <FaQuoteLeft className="absolute -top-2 -left-1 text-[#72bf24]/20 text-2xl" />
+                <p className="text-sm text-gray-600 leading-relaxed line-clamp-3 pl-4">
+                  {member.bio}
+                </p>
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
+            <Link 
+              to={`/board/${member.id}`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#72bf24]/10 text-[#72bf24] rounded-full text-sm font-medium hover:bg-[#72bf24] hover:text-white transition-all duration-300 group/btn"
+            >
+              {messageLabel}
+              <FaChevronRight className="text-xs group-hover/btn:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-16 md:py-24">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
@@ -120,18 +168,19 @@ const Board = () => {
             
             <div className="mb-4">
               <span className="inline-flex items-center gap-2 px-4 py-2 bg-[#72bf24]/10 border border-[#72bf24]/20 rounded-full text-[#72bf24] text-sm font-medium">
-                <FaUsers className="text-[#72bf24]" />
-                Leadership
+                {activeCategory === 'board' ? <FaUsers className="text-[#72bf24]" /> : <FaBuilding className="text-[#72bf24]" />}
+                {activeCategory === 'board' ? 'Board of Advisors' : 'Management Team'}
               </span>
             </div>
             
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-light text-gray-900 mb-4 tracking-tight">
-              Board of <span className="font-semibold text-[#72bf24]">Advisors</span>
+              {activeCategory === 'board' ? 'Board of ' : ''}<span className="font-semibold text-[#72bf24]">{activeCategory === 'board' ? 'Advisors' : 'Management Team'}</span>
             </h1>
             
             <p className="text-lg text-gray-600 font-light max-w-3xl leading-relaxed">
-              A specialized assembly of distinguished leaders and innovators providing 
-              strategic guidance to drive Satesoft's technological excellence.
+              {activeCategory === 'board' 
+                ? 'Meet the visionaries and industry leaders guiding Satesoft\'s mission to transform Africa\'s digital landscape.'
+                : 'Meet the executive leaders driving Satesoft\'s day-to-day operations and strategic growth across Africa.'}
             </p>
           </div>
           
@@ -145,11 +194,11 @@ const Board = () => {
                 className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl text-gray-700 placeholder:text-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#72bf24] focus:border-transparent transition-all"
                 aria-label="Search board members"
               />
-              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <FaSearch className="absolute left-4 top-1/2 -translate-x-1/2 text-gray-400" />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-4 top-1/2 -translate-x-1/2 text-gray-400 hover:text-gray-600"
                 >
                   ✕
                 </button>
@@ -159,127 +208,83 @@ const Board = () => {
         </div>
 
         {/* ============================================================
-            FILTERS
+            CATEGORY BUTTONS
             ============================================================ */}
-        <div className="flex flex-wrap items-center gap-3 mb-8">
-          <span className="text-sm text-gray-500 font-medium mr-2">Filter by:</span>
-          {roles.map((role) => (
-            <button
-              key={role}
-              onClick={() => setFilterRole(role)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-300 ${
-                filterRole === role
-                  ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:border-[#72bf24]/30 hover:text-[#72bf24]'
-              }`}
-            >
-              {role}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3 mb-10">
+          <button
+            onClick={() => setActiveCategory('board')}
+            className={`px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2 ${
+              activeCategory === 'board'
+                ? 'bg-[#72bf24] text-white shadow-lg shadow-[#72bf24]/30 scale-105'
+                : 'bg-white text-gray-600 border border-gray-200 hover:border-[#72bf24]/30 hover:text-[#72bf24] hover:scale-105'
+            }`}
+          >
+            <FaUsers className="text-sm" />
+            Board of Advisors
+          </button>
+          <button
+            onClick={() => setActiveCategory('management')}
+            className={`px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2 ${
+              activeCategory === 'management'
+                ? 'bg-[#72bf24] text-white shadow-lg shadow-[#72bf24]/30 scale-105'
+                : 'bg-white text-gray-600 border border-gray-200 hover:border-[#72bf24]/30 hover:text-[#72bf24] hover:scale-105'
+            }`}
+          >
+            <FaBuilding className="text-sm" />
+            Management Team
+          </button>
         </div>
 
         {/* ============================================================
             MEMBERS GRID
             ============================================================ */}
         {filteredAdvisors.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredAdvisors.map((advisor, index) => {
               const fullName = `${advisor.firstName || ''} ${advisor.lastName || ''}`.trim();
               const roleName = getRoleName(advisor.roleId);
               const roleColor = getRoleColor(advisor.roleId);
+              const messageLabel = `Message from ${advisor.firstName || 'member'}`;
               
               return (
                 <div 
                   key={advisor.id} 
-                  className="group bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden flex flex-col sm:flex-row hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
-                  style={{ animationDelay: `${index * 0.05}s` }}
+                  className="group relative bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                  style={{ animationDelay: `${index * 0.08}s` }}
                 >
-                  {/* Image */}
-                  <div className="sm:w-2/5 h-64 sm:h-auto relative overflow-hidden flex-shrink-0 bg-gray-100">
-                    {advisor.imageUrl ? (
-                      <img 
-                        src={advisor.imageUrl} 
-                        alt={fullName} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-[#72bf24]/10 to-[#72bf24]/5 flex items-center justify-center">
-                        <FaUser className="text-6xl text-[#72bf24]/30" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-gray-900/40 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:via-transparent sm:to-gray-900/10"></div>
-                    
-                    {/* Role Badge */}
-                    <div className={`absolute top-4 left-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${roleColor} backdrop-blur-sm`}>
-                      <FaBriefcase className="text-xs" />
-                      {roleName}
-                    </div>
-                  </div>
+                  {/* Animated gradient border effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#72bf24]/0 via-[#72bf24]/10 to-[#72bf24]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                   
                   {/* Content */}
-                  <div className="p-6 flex flex-col flex-1">
-                    <h3 className="text-xl font-semibold text-gray-900 mb-1">
-                      {fullName}
-                    </h3>
-                    
-                    {advisor.expertise && (
-                      <p className="text-sm text-[#72bf24] font-medium mb-3">
-                        {advisor.expertise}
-                      </p>
-                    )}
-                    
-                    {advisor.bio && (
-                      <p className="text-sm text-gray-600 leading-relaxed flex-1 line-clamp-3">
-                        {advisor.bio}
-                      </p>
-                    )}
-                    
-                    <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        {advisor.email && (
-                          <a 
-                            href={`mailto:${advisor.email}`} 
-                            className="text-gray-400 hover:text-[#72bf24] transition-colors"
-                            aria-label={`Email ${fullName}`}
-                          >
-                            <FaEnvelope className="text-sm" />
-                          </a>
-                        )}
-                        {advisor.linkedin && (
-                          <a 
-                            href={advisor.linkedin} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-[#0A66C2] transition-colors"
-                            aria-label={`${fullName} on LinkedIn`}
-                          >
-                            <FaLinkedin className="text-sm" />
-                          </a>
-                        )}
-                        {advisor.twitter && (
-                          <a 
-                            href={advisor.twitter} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-[#1DA1F2] transition-colors"
-                            aria-label={`${fullName} on Twitter`}
-                          >
-                            <FaTwitter className="text-sm" />
-                          </a>
-                        )}
+                  <div className="p-4 md:p-5 flex flex-col relative">
+                    <div className="flex-1">
+                      <h3 className="text-base md:text-lg font-bold text-gray-900 mb-1 group-hover:text-[#72bf24] transition-colors">
+                        {fullName}
+                      </h3>
+                      
+                      <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${roleColor} mb-3`}>
+                        <FaBriefcase className="text-[10px]" />
+                        {roleName}
                       </div>
                       
-                      {advisor.profileLink && (
-                        <a 
-                          href={advisor.profileLink} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-sm font-medium text-[#72bf24] hover:text-[#62a71e] transition-colors group/link"
-                        >
-                          Full Profile
-                          <FaChevronRight className="text-xs group-hover/link:translate-x-1 transition-transform" />
-                        </a>
+                      {advisor.bio && (
+                        <div className="relative">
+                          <FaQuoteLeft className="absolute -top-1 -left-0.5 text-[#72bf24]/20 text-lg" />
+                          <p className="text-xs text-gray-600 leading-relaxed line-clamp-2 pl-3">
+                            {advisor.bio}
+                          </p>
+                        </div>
                       )}
+                    </div>
+                    
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
+                      <Link 
+                        to={`/board/${advisor.id}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#72bf24]/10 text-[#72bf24] rounded-full text-xs font-medium hover:bg-[#72bf24] hover:text-white transition-all duration-300 group/btn"
+                      >
+                        {messageLabel}
+                        <FaChevronRight className="text-[10px] group-hover/btn:translate-x-1 transition-transform" />
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -287,14 +292,14 @@ const Board = () => {
             })}
           </div>
         ) : (
-          <div className="col-span-2 text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-200">
+          <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-200">
             <div className="text-5xl mb-4">🔍</div>
             <h3 className="text-xl font-medium text-gray-700 mb-2">No members found</h3>
             <p className="text-gray-400 font-light">
               Try adjusting your search or filter to find what you're looking for.
             </p>
             <button
-              onClick={() => { setSearchQuery(""); setFilterRole("All"); }}
+              onClick={() => { setSearchQuery(""); setActiveCategory("board"); }}
               className="mt-4 text-[#72bf24] hover:text-[#62a71e] font-medium transition-colors"
             >
               Clear all filters
@@ -303,42 +308,25 @@ const Board = () => {
         )}
 
         {/* ============================================================
-            STATS / CALL TO ACTION
-            ============================================================ */}
-        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-2xl p-6 text-center border border-gray-100 shadow-sm">
-            <div className="text-3xl font-bold text-[#72bf24]">{advisors.length}</div>
-            <div className="text-sm text-gray-500 mt-1">Total Members</div>
-          </div>
-          <div className="bg-white rounded-2xl p-6 text-center border border-gray-100 shadow-sm">
-            <div className="text-3xl font-bold text-[#72bf24]">
-              {advisors.filter(a => getRoleName(a.roleId) === 'Board Member').length}
-            </div>
-            <div className="text-sm text-gray-500 mt-1">Board Members</div>
-          </div>
-          <div className="bg-white rounded-2xl p-6 text-center border border-gray-100 shadow-sm">
-            <div className="text-3xl font-bold text-[#72bf24]">
-              {advisors.filter(a => getRoleName(a.roleId) === 'Advisor').length}
-            </div>
-            <div className="text-sm text-gray-500 mt-1">Advisors</div>
-          </div>
-        </div>
-
-        {/* ============================================================
             CTA SECTION
             ============================================================ */}
-        <div className="mt-12 p-8 bg-gradient-to-br from-[#72bf24]/5 to-white rounded-2xl border border-[#72bf24]/10 text-center">
-          <h3 className="text-lg font-semibold text-gray-800">Interested in joining our advisory board?</h3>
-          <p className="text-gray-500 font-light mt-1">
-            We're always looking for visionary leaders to guide our mission.
-          </p>
-          <Link
-            to="/contact"
-            className="mt-4 inline-flex items-center gap-2 px-6 py-2.5 bg-[#72bf24] text-white font-medium rounded-lg hover:bg-[#62a71e] transition-all duration-300 hover:shadow-lg"
-          >
-            Get in Touch
-            <FaChevronRight className="text-sm" />
-          </Link>
+        <div className="mt-16 p-8 bg-gradient-to-br from-[#72bf24]/5 to-white rounded-3xl border border-[#72bf24]/10 text-center">
+          <div className="max-w-2xl mx-auto">
+            <div className="w-16 h-16 bg-[#72bf24]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FaHeart className="text-2xl text-[#72bf24]" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">Interested in joining our team?</h3>
+            <p className="text-gray-500 font-light mb-6">
+              We're always looking for visionary leaders, innovative thinkers, and passionate professionals to join our advisory board and management team.
+            </p>
+            <Link
+              to="/contact"
+              className="inline-flex items-center gap-2 px-8 py-3 bg-[#72bf24] text-white font-semibold rounded-xl hover:bg-[#62a71e] transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
+            >
+              Get in Touch
+              <FaChevronRight className="text-sm" />
+            </Link>
+          </div>
         </div>
         
       </div>

@@ -153,7 +153,7 @@ export default function SatesoftApp() {
     setError(null);
     try {
       console.log('Fetching API data...');
-      const [statsData, emails, applicantsData, productsData, partnersData, advisorsData, jobsData, newsData, serviceAgreementsData, jurisdictionsData, contactsData, pricingData, privacyPoliciesData, servicesData, subscribersCount] = await Promise.all([
+      const [statsData, emails, applicantsData, productsData, partnersData, advisorsData, jobsData, newsData, serviceAgreementsData, jurisdictionsData, contactsData, pricingData, privacyPoliciesData, servicesData, subscribersCount, milestonesData] = await Promise.all([
         apiFetch('/stats').catch((err) => { console.error('stats error', err); return []; }),
         apiFetch('/messages').catch((err) => { console.error('messages error', err); return []; }),
         apiFetch('/applicants').catch((err) => { console.error('applicants error', err); return []; }),
@@ -169,6 +169,7 @@ export default function SatesoftApp() {
         apiFetch('/privacy-policies').catch((err) => { console.error('privacy-policies error', err); return []; }),
         apiFetch('/services').catch((err) => { console.error('services error', err); return []; }),
         apiFetch('/subscribers/count').catch((err) => { console.error('subscribers count error', err); return { count: 0 }; }),
+        apiFetch('/milestones').catch((err) => { console.error('milestones error', err); return []; }),
       ]);
       console.log('API data fetched:', { statsData, newsData, subscribersCount });
 
@@ -275,6 +276,7 @@ export default function SatesoftApp() {
         displayOrder: s.displayOrder || 0,
       }));
       setServices(mappedServices);
+      setMilestones(milestonesData || []);
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err);
       setError('Failed to load dashboard data');
@@ -380,6 +382,10 @@ export default function SatesoftApp() {
     if (activeTab === 'news') fetchNewsPosts();
   }, [activeTab]);
 
+  useEffect(() => {
+    if (activeTab === 'journey') fetchMilestones();
+  }, [activeTab]);
+
   const [openAccordions, setOpenAccordions] = useState({
     products: false,
     services: false,
@@ -390,7 +396,8 @@ export default function SatesoftApp() {
     opportunityMgt: false,
     corporateMgt: false,
     legalMgt: false,
-    settings: false
+    settings: false,
+    journey: false
   });
 
   const toggleAccordion = (key) => {
@@ -495,6 +502,30 @@ export default function SatesoftApp() {
     contactName: '',
     contactEmail: '',
     status: 'ACTIVE'
+  });
+  const [milestones, setMilestones] = useState([]);
+  const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
+  const [milestoneModalMode, setMilestoneModalMode] = useState('add');
+  const [selectedMilestone, setSelectedMilestone] = useState(null);
+  const [viewMilestone, setViewMilestone] = useState(null);
+  const [viewActivity, setViewActivity] = useState(null);
+  const [milestoneFormData, setMilestoneFormData] = useState({
+    year: '',
+    title: '',
+    description: '',
+    color: '#72bf24',
+    displayOrder: 0,
+    icon: ''
+  });
+  const [milestoneActivities, setMilestoneActivities] = useState([]);
+  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [activityModalMode, setActivityModalMode] = useState('add');
+  const [selectedActivity, setSelectedActivity] = useState(null);
+  const [activityFormData, setActivityFormData] = useState({
+    month: '',
+    title: '',
+    description: '',
+    displayOrder: 0
   });
 
   // --- PRODUCT HANDLERS ---
@@ -884,6 +915,153 @@ export default function SatesoftApp() {
     }
   };
 
+  // --- MILESTONE HANDLERS ---
+  const handleOpenAddMilestone = () => {
+    setMilestoneModalMode('add');
+    setSelectedMilestone(null);
+    setMilestoneFormData({ year: '', title: '', description: '', color: '#72bf24', displayOrder: 0, icon: '' });
+    setIsMilestoneModalOpen(true);
+  };
+
+  const handleOpenEditMilestone = (milestone) => {
+    setMilestoneModalMode('edit');
+    setSelectedMilestone(milestone);
+    setMilestoneFormData({
+      year: milestone.year,
+      title: milestone.title,
+      description: milestone.description || '',
+      color: milestone.color || '#72bf24',
+      displayOrder: milestone.displayOrder || 0,
+      icon: milestone.icon || '',
+    });
+    setIsMilestoneModalOpen(true);
+  };
+
+  const handleSaveMilestone = async (e) => {
+    e.preventDefault();
+    try {
+      if (milestoneModalMode === 'add') {
+        await apiFetch('/milestones', {
+          method: 'POST',
+          data: milestoneFormData,
+        });
+      } else {
+        await apiFetch('/milestones/' + selectedMilestone.id, {
+          method: 'PUT',
+          data: milestoneFormData,
+        });
+      }
+      setIsMilestoneModalOpen(false);
+      fetchMilestones();
+    } catch (err) {
+      console.error('Failed to save milestone:', err);
+      const message = err?.response?.data?.error || err?.message || 'Failed to save milestone. Please try again.';
+      alert(message);
+    }
+  };
+
+  const handleDeleteMilestone = async (id) => {
+    if (window.confirm('Are you sure you want to delete this milestone?')) {
+      try {
+        await apiFetch('/milestones/' + id, { method: 'DELETE' });
+        fetchMilestones();
+      } catch (err) {
+        console.error('Failed to delete milestone:', err);
+        const message = err?.response?.data?.error || err?.message || 'Failed to delete milestone. Please try again.';
+        alert(message);
+      }
+    }
+  };
+
+  const handleViewMilestone = async (milestone) => {
+    try {
+      const data = await apiFetch('/milestones/' + milestone.id);
+      setViewMilestone(data);
+      const activities = await apiFetch('/milestones/' + milestone.id + '/activities');
+      setMilestoneActivities(activities || []);
+    } catch (err) {
+      console.error('Failed to fetch milestone details:', err);
+      const message = err?.response?.data?.error || err?.message || 'Failed to load milestone details.';
+      alert(message);
+    }
+  };
+
+  const handleViewActivity = (activity) => {
+    setViewActivity(activity);
+  };
+
+  const fetchMilestones = async () => {
+    try {
+      const data = await apiFetch('/milestones');
+      setMilestones(data || []);
+    } catch (err) {
+      console.error('Failed to fetch milestones:', err);
+    }
+  };
+
+  // --- MILESTONE ACTIVITY HANDLERS ---
+  const handleOpenAddActivity = () => {
+    setActivityModalMode('add');
+    setSelectedActivity(null);
+    setActivityFormData({ month: '', title: '', description: '', displayOrder: 0 });
+    setIsActivityModalOpen(true);
+  };
+
+  const handleOpenEditActivity = (activity) => {
+    setActivityModalMode('edit');
+    setSelectedActivity(activity);
+    setActivityFormData({
+      month: activity.month,
+      title: activity.title,
+      description: activity.description || '',
+      displayOrder: activity.displayOrder || 0,
+    });
+    setIsActivityModalOpen(true);
+  };
+
+  const handleSaveActivity = async (e) => {
+    e.preventDefault();
+    try {
+      if (!viewMilestone) return;
+      if (activityModalMode === 'add') {
+        const data = await apiFetch('/milestones/' + viewMilestone.id + '/activities', {
+          method: 'POST',
+          data: activityFormData,
+        });
+        setMilestoneActivities((prev) => [...prev, data]);
+        setIsActivityModalOpen(false);
+      } else {
+        const data = await apiFetch('/milestone-activities/' + selectedActivity.id, {
+          method: 'PUT',
+          data: activityFormData,
+        });
+        setMilestoneActivities((prev) => prev.map((a) => (a.id === data.id ? { ...a, ...data } : a)));
+        setIsActivityModalOpen(false);
+      }
+      handleViewMilestone(viewMilestone);
+    } catch (err) {
+      console.error('Failed to save activity:', err);
+      const message = err?.response?.data?.error || err?.message || 'Failed to save activity. Please try again.';
+      alert(message);
+    }
+  };
+
+  const handleDeleteActivity = async (id) => {
+    if (window.confirm('Are you sure you want to delete this activity?')) {
+      try {
+        await apiFetch('/milestone-activities/' + id, { method: 'DELETE' });
+        setMilestoneActivities((prev) => prev.filter((a) => a.id !== id));
+        if (viewMilestone) {
+          handleViewMilestone(viewMilestone);
+        }
+      } catch (err) {
+        console.error('Failed to delete activity:', err);
+        const message = err?.response?.data?.error || err?.message || 'Failed to delete activity. Please try again.';
+        alert(message);
+      }
+    }
+  };
+
   // --- APPLICANT HANDLERS ---
   const [isApplicantModalOpen, setIsApplicantModalOpen] = useState(false);
   const [applicantModalMode, setApplicantModalMode] = useState('add');
@@ -1042,15 +1220,11 @@ export default function SatesoftApp() {
   const [viewAdvisor, setViewAdvisor] = useState(null);
   const [advisorFormData, setAdvisorFormData] = useState({
     name: '',
-    lastName: '',
-    email: '',
-    contact: '',
-    linkedIn: '',
     message: '',
     role: 'Advisor',
+    category: 'board',
     status: 'Active',
     order: 1,
-    imageUrl: '',
   });
   const [advisorSaving, setAdvisorSaving] = useState(false);
   const [advisorError, setAdvisorError] = useState('');
@@ -1060,15 +1234,11 @@ export default function SatesoftApp() {
     setSelectedAdvisor(null);
     setAdvisorFormData({
       name: '',
-      lastName: '',
-      email: '',
-      contact: '',
-      linkedIn: '',
-      bio: '',
+      message: '',
       role: 'Advisor',
+      category: 'board',
       status: 'Active',
       order: advisors.length + 1,
-      imageUrl: '',
     });
     setAdvisorError('');
     setIsAdvisorModalOpen(true);
@@ -1081,20 +1251,13 @@ export default function SatesoftApp() {
   const handleOpenEditAdvisor = (advisor) => {
     setAdvisorModalMode('edit');
     setSelectedAdvisor(advisor);
-    const nameParts = advisor.name.trim().split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
     setAdvisorFormData({
-      name: firstName,
-      lastName: lastName,
-      email: advisor.email || '',
-      contact: advisor.contact || '',
-      linkedIn: advisor.linkedIn || '',
+      name: advisor.name || '',
       message: advisor.message || '',
-      role: advisor.role,
-      status: advisor.status,
-      order: advisor.order,
-      imageUrl: advisor.imageUrl || '',
+      role: advisor.role || 'Advisor',
+      category: advisor.category || 'board',
+      status: advisor.status || 'Active',
+      order: advisor.order || 0,
     });
     setAdvisorError('');
     setIsAdvisorModalOpen(true);
@@ -1108,6 +1271,7 @@ export default function SatesoftApp() {
         id: a.id,
         name: (a.firstName || '') + ' ' + (a.lastName || ''),
         role: a.roleName || 'Advisor',
+        category: a.category || 'board',
         status: a.isActive ? 'Active' : 'Inactive',
         order: a.order || 0,
         email: a.email || '',
@@ -1134,12 +1298,12 @@ export default function SatesoftApp() {
     setAdvisorError('');
     setAdvisorSaving(true);
     try {
-      const firstName = advisorFormData.name.trim() || '';
-      const lastName = advisorFormData.lastName.trim() || '';
+      const name = advisorFormData.name.trim() || '';
       const role = advisorFormData.role.trim() || 'Advisor';
+      const category = advisorFormData.category || 'board';
       
-      if (!firstName) {
-        setAdvisorError('Please enter a first name.');
+      if (!name) {
+        setAdvisorError('Please enter a name.');
         setAdvisorSaving(false);
         return;
       }
@@ -1148,61 +1312,47 @@ export default function SatesoftApp() {
         const data = await apiFetch('/advisors', {
           method: 'POST',
           data: {
-            firstName,
-            lastName,
+            firstName: name,
             role,
+            category,
             advisorOrder: advisorFormData.order,
-            email: advisorFormData.email,
-            contact: advisorFormData.contact,
-            profileLink: advisorFormData.linkedIn,
             message: advisorFormData.message,
             bio: advisorFormData.message,
             isActive: advisorFormData.status === 'Active',
-            imageUrl: advisorFormData.imageUrl,
           },
         });
         setAdvisors([...advisors, {
           id: data.id,
           name: advisorFormData.name,
           role: advisorFormData.role,
+          category: category,
           status: advisorFormData.status,
           order: advisorFormData.order,
-          email: advisorFormData.email,
-          contact: advisorFormData.contact,
-          linkedIn: advisorFormData.linkedIn,
           message: advisorFormData.message,
           bio: advisorFormData.message,
-          imageUrl: advisorFormData.imageUrl,
         }]);
       } else {
         const data = await apiFetch('/advisors/' + selectedAdvisor.id, {
           method: 'PUT',
           data: {
-            firstName,
-            lastName,
+            firstName: name,
             role,
+            category,
             advisorOrder: advisorFormData.order,
-            email: advisorFormData.email,
-            contact: advisorFormData.contact,
-            profileLink: advisorFormData.linkedIn,
             message: advisorFormData.message,
             bio: advisorFormData.message,
             isActive: advisorFormData.status === 'Active',
-            imageUrl: advisorFormData.imageUrl,
           },
         });
         setAdvisors(advisors.map((a) => (a.id === data.id ? {
           ...a,
           name: advisorFormData.name,
           role: advisorFormData.role,
+          category: category,
           status: advisorFormData.status,
           order: advisorFormData.order,
-          email: advisorFormData.email,
-          contact: advisorFormData.contact,
-          linkedIn: advisorFormData.linkedIn,
           message: advisorFormData.message,
           bio: advisorFormData.message,
-          imageUrl: advisorFormData.imageUrl,
         } : a)));
       }
       setIsAdvisorModalOpen(false);
@@ -1826,7 +1976,7 @@ export default function SatesoftApp() {
       });
       const matches = response.data.matches;
       if (matches && matches.length > 0) {
-        const issues = matches.map((m) => `• ${m.message} (${m.shortMessage})`).join('\n');
+        const issues = matches.map((m) => `â€¢ ${m.message} (${m.shortMessage})`).join('\n');
         setGrammarResult('Grammar issues found:\n\n' + issues);
       } else {
         setGrammarResult('No grammar issues found!');
@@ -1842,9 +1992,9 @@ export default function SatesoftApp() {
   const renderMarkdown = (text) => {
     if (!text) return '';
     let html = text
-      .replace(/^### (.*$)/gim, '<div class="mt-3 mb-2"><div class="flex items-center gap-2 mb-1"><span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-[#f0f9e8] text-[#72bf24] text-[10px] font-bold border border-[#d3f0b4] shrink-0">§</span><h3 class="text-sm font-bold text-slate-900">$1</h3></div><div class="pl-7 text-sm text-slate-700 leading-relaxed">')
-      .replace(/^## (.*$)/gim, '<div class="mt-4 mb-2"><div class="flex items-center gap-2 mb-1"><span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200 shrink-0">¶</span><h2 class="text-base font-bold text-slate-900">$1</h2></div><div class="pl-7 text-sm text-slate-700 leading-relaxed">')
-      .replace(/^# (.*$)/gim, '<div class="mb-4 mt-2"><div class="flex items-center gap-2 mb-2"><span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-[#72bf24] text-white text-xs font-bold shrink-0">§</span><h1 class="text-lg font-bold text-slate-900">$1</h1></div><div class="pl-8 text-sm text-slate-700 leading-relaxed">')
+      .replace(/^### (.*$)/gim, '<div class="mt-3 mb-2"><div class="flex items-center gap-2 mb-1"><span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-[#f0f9e8] text-[#72bf24] text-[10px] font-bold border border-[#d3f0b4] shrink-0">Â§</span><h3 class="text-sm font-bold text-slate-900">$1</h3></div><div class="pl-7 text-sm text-slate-700 leading-relaxed">')
+      .replace(/^## (.*$)/gim, '<div class="mt-4 mb-2"><div class="flex items-center gap-2 mb-1"><span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200 shrink-0">Â¶</span><h2 class="text-base font-bold text-slate-900">$1</h2></div><div class="pl-7 text-sm text-slate-700 leading-relaxed">')
+      .replace(/^# (.*$)/gim, '<div class="mb-4 mt-2"><div class="flex items-center gap-2 mb-2"><span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-[#72bf24] text-white text-xs font-bold shrink-0">Â§</span><h1 class="text-lg font-bold text-slate-900">$1</h1></div><div class="pl-8 text-sm text-slate-700 leading-relaxed">')
       .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/^\s*-\s(.*$)/gim, '<li class="ml-4 list-disc mb-1">$1</li>')
@@ -1892,6 +2042,25 @@ export default function SatesoftApp() {
       a.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (a.contact && a.contact.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const filteredManagementTeam = advisors.filter(
+    (a) =>
+      (a.category || 'board') === 'management' &&
+      (a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (a.contact && a.contact.toLowerCase().includes(searchTerm.toLowerCase())))
+  );
+
+  const filteredMilestones = milestones
+    .slice()
+    .sort((a, b) => Number(b.year) - Number(a.year))
+    .filter(
+      (m) =>
+        String(m.year).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (m.title && m.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (m.description && m.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
 
   // --- ICON RENDERER ---
   const renderProductIcon = (type) => {
@@ -2419,11 +2588,12 @@ export default function SatesoftApp() {
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      </div>
-    );
-  };
+           </div>
+         </div>
+         </div>
+        );
+      };
+
 
   // ============================================================
   // MAIN RETURN
@@ -2534,22 +2704,114 @@ export default function SatesoftApp() {
           color: #e2e8f0 !important;
         }
         .admin-dark-mode .text-slate-900 {
-          color: #f1f5f9 !important;
+          color: #84cc16 !important;
         }
         .admin-dark-mode .text-slate-800 {
-          color: #e2e8f0 !important;
+          color: #84cc16 !important;
         }
         .admin-dark-mode .text-slate-700 {
-          color: #cbd5e1 !important;
+          color: #84cc16 !important;
         }
         .admin-dark-mode .text-slate-600 {
-          color: #94a3b8 !important;
+          color: #84cc16 !important;
         }
         .admin-dark-mode .text-slate-500 {
-          color: #94a3b8 !important;
+          color: #84cc16 !important;
         }
         .admin-dark-mode .text-slate-400 {
-          color: #64748b !important;
+          color: #84cc16 !important;
+        }
+        .admin-dark-mode .text-gray-900,
+        .admin-dark-mode .text-gray-800,
+        .admin-dark-mode .text-gray-700,
+        .admin-dark-mode .text-gray-600,
+        .admin-dark-mode .text-gray-500,
+        .admin-dark-mode .text-gray-400 {
+          color: #84cc16 !important;
+        }
+        .admin-dark-mode .text-red-600,
+        .admin-dark-mode .text-red-500,
+        .admin-dark-mode .text-red-400,
+        .admin-dark-mode .text-red-700 {
+          color: #84cc16 !important;
+        }
+        .admin-dark-mode .text-blue-600,
+        .admin-dark-mode .text-blue-500,
+        .admin-dark-mode .text-blue-400,
+        .admin-dark-mode .text-blue-700 {
+          color: #84cc16 !important;
+        }
+        .admin-dark-mode .text-green-600,
+        .admin-dark-mode .text-green-500,
+        .admin-dark-mode .text-green-400,
+        .admin-dark-mode .text-green-700 {
+          color: #84cc16 !important;
+        }
+        .admin-dark-mode .text-yellow-600,
+        .admin-dark-mode .text-yellow-500,
+        .admin-dark-mode .text-yellow-400,
+        .admin-dark-mode .text-yellow-700 {
+          color: #84cc16 !important;
+        }
+        .admin-dark-mode .text-orange-600,
+        .admin-dark-mode .text-orange-500,
+        .admin-dark-mode .text-orange-400,
+        .admin-dark-mode .text-orange-700 {
+          color: #84cc16 !important;
+        }
+        .admin-dark-mode .text-purple-600,
+        .admin-dark-mode .text-purple-500,
+        .admin-dark-mode .text-purple-400,
+        .admin-dark-mode .text-purple-700 {
+          color: #84cc16 !important;
+        }
+        .admin-dark-mode .text-pink-600,
+        .admin-dark-mode .text-pink-500,
+        .admin-dark-mode .text-pink-400,
+        .admin-dark-mode .text-pink-700 {
+          color: #84cc16 !important;
+        }
+        .admin-dark-mode .text-indigo-600,
+        .admin-dark-mode .text-indigo-500,
+        .admin-dark-mode .text-indigo-400,
+        .admin-dark-mode .text-indigo-700 {
+          color: #84cc16 !important;
+        }
+        .admin-dark-mode .text-teal-600,
+        .admin-dark-mode .text-teal-500,
+        .admin-dark-mode .text-teal-400,
+        .admin-dark-mode .text-teal-700 {
+          color: #84cc16 !important;
+        }
+        .admin-dark-mode .text-cyan-600,
+        .admin-dark-mode .text-cyan-500,
+        .admin-dark-mode .text-cyan-400,
+        .admin-dark-mode .text-cyan-700 {
+          color: #84cc16 !important;
+        }
+        .admin-dark-mode .text-emerald-600,
+        .admin-dark-mode .text-emerald-500,
+        .admin-dark-mode .text-emerald-400,
+        .admin-dark-mode .text-emerald-700 {
+          color: #84cc16 !important;
+        }
+        .admin-dark-mode .text-amber-600,
+        .admin-dark-mode .text-amber-500,
+        .admin-dark-mode .text-amber-400,
+        .admin-dark-mode .text-amber-700 {
+          color: #84cc16 !important;
+        }
+        .admin-dark-mode .text-rose-600,
+        .admin-dark-mode .text-rose-500,
+        .admin-dark-mode .text-rose-400,
+        .admin-dark-mode .text-rose-700 {
+          color: #84cc16 !important;
+        }
+        .admin-dark-mode .text-lime-600,
+        .admin-dark-mode .text-lime-500,
+        .admin-dark-mode .text-lime-400,
+        .admin-dark-mode .text-lime-700 {
+          color: #84cc16 !important;
         }
         .admin-dark-mode .border-slate-200 {
           border-color: #334155 !important;
@@ -2632,7 +2894,7 @@ export default function SatesoftApp() {
           transform: scale(1.02);
         }
 
-        /* Dedicated form workspaces — add and edit actions feel like focused pages. */
+        /* Dedicated form workspaces â€” add and edit actions feel like focused pages. */
         .admin-app {
           background:
             radial-gradient(circle at 78% -8%, rgba(114, 191, 36, 0.13), transparent 30%),
@@ -2940,6 +3202,17 @@ export default function SatesoftApp() {
               <span>Company News</span>
             </button>
 
+            {/* Journey / Milestones */}
+            <button
+              onClick={() => setActiveTab('journey')}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
+                activeTab === 'journey' ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20' : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
+              }`}
+            >
+              <Activity className="w-4 h-4 relative z-10 nav-item-icon" />
+              <span>Journey</span>
+            </button>
+
             {/* Corporate Mgt Dropdown Accordion with Board of Advisors */}
             <div>
               <button
@@ -2966,6 +3239,14 @@ export default function SatesoftApp() {
                     }`}
                   >
                     Board of Advisors
+                  </span>
+                  <span
+                    onClick={() => setActiveTab('management-team')}
+                    className={`cursor-pointer transition-colors duration-300 ${
+                      activeTab === 'management-team' ? 'text-[#72bf24] font-bold' : 'text-slate-500 hover:text-[#72bf24]'
+                    }`}
+                  >
+                    Management Team
                   </span>
                 </div>
               )}
@@ -3999,10 +4280,8 @@ export default function SatesoftApp() {
                   <table className="w-full text-left border-collapse">
                     <thead className="bg-[#f8fafc]">
                       <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500 tracking-wider">
-                        <th className="py-4 pl-6 w-[25%]">NAME</th>
-                        <th className="py-4 w-[20%]">EMAIL</th>
-                        <th className="py-4 w-[15%]">CONTACT</th>
-                        <th className="py-4 w-[20%]">LINKEDIN</th>
+                        <th className="py-4 pl-6 w-[40%]">NAME</th>
+                        <th className="py-4 w-[40%]">ROLE</th>
                         <th className="py-4 pr-6 text-right w-[20%]">ACTIONS</th>
                       </tr>
                     </thead>
@@ -4011,32 +4290,9 @@ export default function SatesoftApp() {
                         filteredAdvisors.map((advisor) => (
                           <tr key={advisor.id} className="hover:bg-slate-50/70 transition-colors duration-150">
                             <td className="py-5 pl-6">
-                              <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-full bg-[#f0f9e8] border border-[#d3f0b4] flex items-center justify-center shrink-0 overflow-hidden transition-all duration-300 hover:scale-110">
-                                   {advisor.imageUrl ? (
-                                     <img src={resolveImageUrl(advisor.imageUrl)} alt={advisor.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
-                                   ) : (
-                                     <User className="w-5 h-5 text-[#72bf24]" />
-                                   )}
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-slate-900 text-sm">{advisor.name}</div>
-                                  <div className="text-xs text-slate-400">{advisor.role}</div>
-                                </div>
-                              </div>
+                              <div className="font-semibold text-slate-900 text-sm">{advisor.name}</div>
                             </td>
-                            <td className="py-5 text-sm text-slate-600">{advisor.email}</td>
-                            <td className="py-5 text-sm text-slate-600">{advisor.contact}</td>
-                            <td className="py-5 text-sm text-slate-600">
-                              {advisor.linkedIn ? (
-                                <a href={advisor.linkedIn} target="_blank" rel="noopener noreferrer" className="text-[#72bf24] hover:underline transition-colors flex items-center gap-1">
-                                  <ExternalLink className="w-3.5 h-3.5" />
-                                  Profile
-                                </a>
-                              ) : (
-                                <span className="text-slate-400">-</span>
-                              )}
-                            </td>
+                            <td className="py-5 text-sm text-slate-600">{advisor.role}</td>
                             <td className="py-5 pr-6">
                               <div className="flex items-center justify-end gap-1.5">
                                 <button
@@ -4066,7 +4322,7 @@ export default function SatesoftApp() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={5} className="py-16 text-center">
+                          <td colSpan={3} className="py-16 text-center">
                             <div className="flex flex-col items-center gap-3">
                               <User className="w-12 h-12 text-slate-300" />
                               <span className="text-sm text-slate-400">No advisors found matching your search.</span>
@@ -4086,10 +4342,93 @@ export default function SatesoftApp() {
               </div>
             )}
 
+            {/* ==================== MANAGEMENT TEAM VIEW ==================== */}
+            {activeTab === 'management-team' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Management Team</h1>
+                    <p className="text-sm text-slate-500 mt-1">Manage profiles and information for the <span className="text-[#72bf24]">SATESOFT</span> Management Team</p>
+                  </div>
+                  <button
+                    onClick={handleOpenAddAdvisor}
+                    className="bg-[#72bf24] hover:bg-[#62a71e] text-white font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
+                  >
+                    <Plus className="w-4 h-4 stroke-[2.5]" />
+                    <span>Add Member</span>
+                  </button>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-[#f8fafc]">
+                      <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500 tracking-wider">
+                        <th className="py-4 pl-6 w-[40%]">NAME</th>
+                        <th className="py-4 w-[40%]">ROLE</th>
+                        <th className="py-4 pr-6 text-right w-[20%]">ACTIONS</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredManagementTeam.length > 0 ? (
+                        filteredManagementTeam.map((advisor) => (
+                          <tr key={advisor.id} className="hover:bg-slate-50/70 transition-colors duration-150">
+                            <td className="py-5 pl-6">
+                              <div className="font-semibold text-slate-900 text-sm">{advisor.name}</div>
+                            </td>
+                            <td className="py-5 text-sm text-slate-600">{advisor.role}</td>
+                            <td className="py-5 pr-6">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => handleViewAdvisor(advisor)}
+                                  className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-300 text-slate-400 hover:text-blue-600"
+                                  title="View"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleOpenEditAdvisor(advisor)}
+                                  className="p-2 hover:bg-green-50 rounded-lg transition-all duration-300 text-slate-400 hover:text-[#72bf24]"
+                                  title="Edit"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteAdvisor(advisor.id)}
+                                  className="p-2 hover:bg-red-50 rounded-lg transition-all duration-300 text-slate-400 hover:text-red-600"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={3} className="py-16 text-center">
+                            <div className="flex flex-col items-center gap-3">
+                              <User className="w-12 h-12 text-slate-300" />
+                              <span className="text-sm text-slate-400">No management team members found matching your search.</span>
+                              <button
+                                onClick={handleOpenAddAdvisor}
+                                className="text-[#72bf24] text-sm font-semibold hover:underline transition-colors"
+                              >
+                                Add your first management team member
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* ==================== VIEW ADVISOR MODAL ==================== */}
             {viewAdvisor && (
               <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+                <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
                   <div className="flex items-center justify-between mb-5">
                     <h3 className="text-base font-semibold text-slate-900">Advisor Details</h3>
                     <button onClick={() => setViewAdvisor(null)} className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90">
@@ -4101,30 +4440,9 @@ export default function SatesoftApp() {
                       <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Name</label>
                       <div className="text-sm font-semibold text-slate-900 mt-1">{viewAdvisor.name}</div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Email</label>
-                        <div className="text-sm text-slate-700 mt-1">{viewAdvisor.email || '-'}</div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Contact</label>
-                        <div className="text-sm text-slate-700 mt-1">{viewAdvisor.contact || '-'}</div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">LinkedIn</label>
-                        <div className="text-sm text-slate-700 mt-1">
-                          {viewAdvisor.linkedIn ? (
-                            <a href={viewAdvisor.linkedIn} target="_blank" rel="noopener noreferrer" className="text-[#72bf24] hover:underline transition-colors flex items-center gap-1">
-                              <ExternalLink className="w-3.5 h-3.5" />
-                              View Profile
-                            </a>
-                          ) : '-'}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</label>
-                        <div className="text-sm text-slate-700 mt-1">{viewAdvisor.role}</div>
-                      </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</label>
+                      <div className="text-sm text-slate-700 mt-1">{viewAdvisor.role}</div>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Message</label>
@@ -4172,114 +4490,44 @@ export default function SatesoftApp() {
                     </div>
                   )}
 
-                    <form onSubmit={handleSaveAdvisor} className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1">First Name</label>
-                          <input
-                            type="text"
-                            required
-                            value={advisorFormData.name}
-                            onChange={(e) => setAdvisorFormData({ ...advisorFormData, name: e.target.value })}
-                            className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
-                            placeholder="e.g. Samuel"
-                          />
+                      <form onSubmit={handleSaveAdvisor} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">Name</label>
+                            <input
+                              type="text"
+                              required
+                              value={advisorFormData.name}
+                              onChange={(e) => setAdvisorFormData({ ...advisorFormData, name: e.target.value })}
+                              className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
+                              placeholder="e.g. Samuel Otieno"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">Role</label>
+                            <input
+                              type="text"
+                              required
+                              value={advisorFormData.role}
+                              onChange={(e) => setAdvisorFormData({ ...advisorFormData, role: e.target.value })}
+                              className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
+                              placeholder="e.g. Board Member, Advisor"
+                            />
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1">Last Name</label>
-                          <input
-                            type="text"
-                            required
-                            value={advisorFormData.lastName}
-                            onChange={(e) => setAdvisorFormData({ ...advisorFormData, lastName: e.target.value })}
-                            className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
-                            placeholder="e.g. Otieno"
-                          />
-                        </div>
-                      </div>
 
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                        <div>
-                         <label className="block text-xs font-semibold text-slate-700 mb-1">Email</label>
-                         <input
-                           type="email"
-                           required
-                           value={advisorFormData.email}
-                           onChange={(e) => setAdvisorFormData({ ...advisorFormData, email: e.target.value })}
-                           className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
-                           placeholder="e.g. samuel@satesoft.com"
+                         <label className="block text-xs font-semibold text-slate-700 mb-1">Message</label>
+                         <textarea
+                           rows="4"
+                           value={advisorFormData.message}
+                           onChange={(e) => setAdvisorFormData({ ...advisorFormData, message: e.target.value })}
+                           className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all resize-none"
+                           placeholder="Message from the advisor..."
                          />
                        </div>
-                       <div>
-                         <label className="block text-xs font-semibold text-slate-700 mb-1">Contact</label>
-                         <input
-                           type="text"
-                           value={advisorFormData.contact}
-                           onChange={(e) => setAdvisorFormData({ ...advisorFormData, contact: e.target.value })}
-                           className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
-                           placeholder="e.g. +254 712 345 678"
-                         />
-                       </div>
-                     </div>
 
-                     <div>
-                       <label className="block text-xs font-semibold text-slate-700 mb-1">LinkedIn URL</label>
-                       <input
-                         type="url"
-                         value={advisorFormData.linkedIn}
-                         onChange={(e) => setAdvisorFormData({ ...advisorFormData, linkedIn: e.target.value })}
-                         className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
-                         placeholder="e.g. https://linkedin.com/in/samuelotieno"
-                       />
-                     </div>
-
-                     <div>
-                       <label className="block text-xs font-semibold text-slate-700 mb-1">Image URL</label>
-                       <input
-                         type="url"
-                         value={advisorFormData.imageUrl}
-                         onChange={(e) => setAdvisorFormData({ ...advisorFormData, imageUrl: e.target.value })}
-                         className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
-                         placeholder="e.g. https://example.com/photo.jpg"
-                       />
-                     </div>
-
-                     <div>
-                       <label className="block text-xs font-semibold text-slate-700 mb-1">Message / Bio</label>
-                       <textarea
-                         rows="4"
-                         value={advisorFormData.message}
-                         onChange={(e) => setAdvisorFormData({ ...advisorFormData, message: e.target.value })}
-                         className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all resize-none"
-                         placeholder="Message from the advisor..."
-                       />
-                     </div>
-
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                       <div>
-                         <label className="block text-xs font-semibold text-slate-700 mb-1">Role</label>
-                         <input
-                           type="text"
-                           value={advisorFormData.role}
-                           onChange={(e) => setAdvisorFormData({ ...advisorFormData, role: e.target.value })}
-                           className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
-                           placeholder="e.g. Board Member, Advisor"
-                         />
-                       </div>
-                       <div>
-                         <label className="block text-xs font-semibold text-slate-700 mb-1">Status</label>
-                         <select
-                           value={advisorFormData.status}
-                           onChange={(e) => setAdvisorFormData({ ...advisorFormData, status: e.target.value })}
-                           className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all bg-white"
-                         >
-                           <option value="Active">Active</option>
-                           <option value="Inactive">Inactive</option>
-                         </select>
-                       </div>
-                     </div>
-
-                     <div className="flex justify-end gap-3 pt-4">
+                  <div className="flex justify-end gap-3 pt-4 shrink-0">
                        <button
                          type="button"
                          onClick={() => setIsAdvisorModalOpen(false)}
@@ -4459,7 +4707,7 @@ export default function SatesoftApp() {
              {/* ==================== VIEW PRIVACY POLICY MODAL ==================== */}
              {viewPrivacyPolicy && (
                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                 <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+                 <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
                    <div className="flex items-center justify-between mb-5">
                      <h3 className="text-base font-semibold text-slate-900">{viewPrivacyPolicy.title}</h3>
                      <button onClick={() => setViewPrivacyPolicy(null)} className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90">
@@ -4593,7 +4841,7 @@ export default function SatesoftApp() {
             {/* ==================== VIEW JURISDICTION MODAL ==================== */}
             {viewJurisdiction && (
               <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+                <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
                   <div className="flex items-center justify-between mb-5">
                     <h3 className="text-base font-semibold text-slate-900">Jurisdiction Details</h3>
                     <button onClick={() => setViewJurisdiction(null)} className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90">
@@ -4748,7 +4996,7 @@ export default function SatesoftApp() {
             {/* ==================== VIEW CONTACT MODAL ==================== */}
             {viewContact && (
               <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+                <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
                   <div className="flex items-center justify-between mb-5">
                     <h3 className="text-base font-semibold text-slate-900">Contact Details</h3>
                     <button onClick={() => setViewContact(null)} className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90">
@@ -5063,7 +5311,7 @@ export default function SatesoftApp() {
             {/* ==================== VIEW NEWS MODAL ==================== */}
             {viewNews && (
               <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+                <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
                   <div className="flex items-center justify-between mb-5">
                     <h3 className="text-base font-semibold text-slate-900">News Details</h3>
                     <button onClick={() => setViewNews(null)} className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90">
@@ -5348,6 +5596,181 @@ export default function SatesoftApp() {
               </div>
             )}
 
+            {/* ==================== JOURNEY / MILESTONES ==================== */}
+            {activeTab === 'journey' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Journey Management</h1>
+                    <p className="text-sm text-slate-500 mt-1">Manage milestone years and monthly activities for the <span className="text-[#72bf24]">Our Journey</span> section</p>
+                  </div>
+                  <button
+                    onClick={handleOpenAddMilestone}
+                    className="bg-[#72bf24] hover:bg-[#62a71e] text-white font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
+                  >
+                    <Plus className="w-4 h-4 stroke-[2.5]" />
+                    <span>Add Milestone</span>
+                  </button>
+                </div>
+
+                {viewMilestone ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => { setViewMilestone(null); setMilestoneActivities([]); }}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        Back to Milestones
+                      </button>
+                      <h2 className="text-lg font-semibold text-slate-900">{viewMilestone.year} - {viewMilestone.title}</h2>
+                      {viewMilestone.icon && (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                          <i className={viewMilestone.icon} style={{ color: viewMilestone.color || '#72bf24' }}></i>
+                          {viewMilestone.icon}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                      <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                          <h3 className="text-base font-semibold text-slate-900">Monthly Activities</h3>
+                          <p className="text-xs text-slate-500 mt-1">Add month cards that will appear on the public Journey page</p>
+                        </div>
+                        <button
+                          onClick={handleOpenAddActivity}
+                          className="bg-[#72bf24] hover:bg-[#62a71e] text-white font-semibold px-4 py-2 rounded-xl flex items-center gap-2 text-sm shadow-sm transition-all"
+                        >
+                          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                          Add Month
+                        </button>
+                      </div>
+                      <div className="p-6">
+                        {milestoneActivities.length > 0 ? (
+                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                             {milestoneActivities.map((activity) => (
+                               <div key={activity.id} onClick={() => handleViewActivity(activity)} className="bg-white rounded-xl border border-slate-200 p-4 hover:border-[#72bf24] transition-all duration-300 cursor-pointer">
+                                 <div className="flex items-center justify-between mb-2">
+                                   <span className="text-xs font-semibold text-[#72bf24] uppercase tracking-wider">{activity.month}</span>
+                                   <div className="flex items-center gap-1">
+                                     <button
+                                       onClick={(e) => { e.stopPropagation(); setSelectedActivity(activity); setActivityModalMode('edit'); setActivityFormData({ month: activity.month, title: activity.title, description: activity.description || '', displayOrder: activity.displayOrder || 0 }); setIsActivityModalOpen(true); }}
+                                       className="p-1.5 hover:bg-blue-50 rounded-lg transition-all text-slate-400 hover:text-blue-600"
+                                     >
+                                       <Pencil className="w-3.5 h-3.5" />
+                                     </button>
+                                     <button
+                                       onClick={(e) => { e.stopPropagation(); if (window.confirm('Delete this month?')) { handleDeleteActivity(activity.id); } }}
+                                       className="p-1.5 hover:bg-red-50 rounded-lg transition-all text-slate-400 hover:text-red-600"
+                                     >
+                                       <Trash2 className="w-3.5 h-3.5" />
+                                     </button>
+                                   </div>
+                                 </div>
+                                 <h4 className="text-sm font-semibold text-slate-900 mb-1">{activity.title}</h4>
+                                 <p className="text-xs text-slate-600 line-clamp-3">{activity.description || 'No description'}</p>
+                               </div>
+                             ))}
+                           </div>
+                        ) : (
+                           <div className="text-center py-12">
+                             <CalendarIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                             <p className="text-sm text-slate-500">No monthly activities yet for this milestone.</p>
+                             <button
+                               onClick={handleOpenAddActivity}
+                               className="mt-3 text-[#72bf24] text-sm font-semibold hover:underline"
+                             >
+                               Add your first month
+                             </button>
+                           </div>
+                         )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-[#f8fafc]">
+                        <tr className="border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                           <th className="py-4 pl-6">Year</th>
+                           <th className="py-4">Title</th>
+                           <th className="py-4">Icon</th>
+                           <th className="py-4">Description</th>
+                           <th className="py-4 pr-6 text-right">Actions</th>
+                         </tr>
+                       </thead>
+                       <tbody className="divide-y divide-slate-100">
+                         {filteredMilestones.length > 0 ? (
+                           filteredMilestones.map((milestone) => (
+                             <tr key={milestone.id} onClick={() => handleViewMilestone(milestone)} className="hover:bg-slate-50/70 transition-colors duration-150 cursor-pointer">
+                               <td className="py-5 pl-6">
+                                 <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#f0f9e8] text-[#166534] text-sm font-bold border border-[#d3f0b4]">
+                                   {milestone.year}
+                                 </span>
+                               </td>
+                               <td className="py-5 text-sm font-bold text-slate-900">{milestone.title}</td>
+                               <td className="py-5 text-sm text-slate-600">
+                                 {milestone.icon ? (
+                                   <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200">
+                                     <i className={milestone.icon} style={{ color: milestone.color || '#72bf24' }}></i>
+                                     <span className="text-[10px] text-slate-500 truncate max-w-[80px]">{milestone.icon.split(' ').pop()}</span>
+                                   </span>
+                                 ) : (
+                                   <span className="text-slate-400">-</span>
+                                 )}
+                               </td>
+                               <td className="py-5 text-sm text-slate-600 max-w-xs truncate">{milestone.description || '-'}</td>
+                              <td className="py-5 pr-6">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleViewMilestone(milestone); }}
+                                    className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-300 text-slate-400 hover:text-blue-600"
+                                    title="View Months"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleOpenEditMilestone(milestone); }}
+                                    className="p-2 hover:bg-green-50 rounded-lg transition-all duration-300 text-slate-400 hover:text-[#72bf24]"
+                                    title="Edit"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteMilestone(milestone.id); }}
+                                    className="p-2 hover:bg-red-50 rounded-lg transition-all duration-300 text-slate-400 hover:text-red-600"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={5} className="py-16 text-center">
+                              <div className="flex flex-col items-center gap-3">
+                                <Activity className="w-12 h-12 text-slate-300" />
+                                <span className="text-sm text-slate-400">No milestones found matching your search.</span>
+                                <button
+                                  onClick={handleOpenAddMilestone}
+                                  className="text-[#72bf24] text-sm font-semibold hover:underline transition-colors"
+                                >
+                                  Add your first milestone
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ==================== PRICING VIEW ==================== */}
             {activeTab === 'pricing' && (
               <div className="space-y-6">
@@ -5450,7 +5873,7 @@ export default function SatesoftApp() {
         {/* ==================== VIEW APPLICANT MODAL ==================== */}
         {viewApplicant && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-base font-semibold text-slate-900">Applicant Details</h3>
                 <button onClick={() => setViewApplicant(null)} className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90">
@@ -5662,10 +6085,10 @@ export default function SatesoftApp() {
           </div>
         )}
 
-        {/* ==================== VIEW PRODUCT MODAL ==================== */}
+         {/* ==================== VIEW PRODUCT MODAL ==================== */}
         {viewProduct && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-base font-semibold text-slate-900">Product Details</h3>
                 <button onClick={() => setViewProduct(null)} className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90">
@@ -5730,7 +6153,7 @@ export default function SatesoftApp() {
         {/* ==================== VIEW OPPORTUNITY MODAL ==================== */}
         {viewOpportunity && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-base font-semibold text-slate-900">Opportunity Details</h3>
                 <button onClick={() => setViewOpportunity(null)} className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90">
@@ -6002,10 +6425,283 @@ export default function SatesoftApp() {
           </div>
         )}
 
-        {/* ==================== VIEW PARTNER MODAL ==================== */}
+         {/* ==================== MILESTONE MODAL ==================== */}
+         {isMilestoneModalOpen && (
+           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+             <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+               <div className="flex items-center justify-between mb-5">
+                 <h3 className="text-base font-semibold text-slate-900">
+                   {milestoneModalMode === 'add' ? 'Add New Milestone' : 'Edit Milestone'}
+                 </h3>
+                 <button
+                   onClick={() => setIsMilestoneModalOpen(false)}
+                   className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90"
+                 >
+                   <X className="w-5 h-5" />
+                 </button>
+               </div>
+
+               <form onSubmit={handleSaveMilestone} className="space-y-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div>
+                     <label className="block text-xs font-semibold text-slate-700 mb-1">Year</label>
+                     <input
+                       type="number"
+                       required
+                       value={milestoneFormData.year}
+                       onChange={(e) => setMilestoneFormData({ ...milestoneFormData, year: e.target.value })}
+                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
+                       placeholder="e.g. 2024"
+                     />
+                   </div>
+                   <div>
+                     <label className="block text-xs font-semibold text-slate-700 mb-1">Display Order</label>
+                     <input
+                       type="number"
+                       value={milestoneFormData.displayOrder}
+                       onChange={(e) => setMilestoneFormData({ ...milestoneFormData, displayOrder: Number(e.target.value) })}
+                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
+                       placeholder="0"
+                     />
+                   </div>
+                 </div>
+
+                 <div>
+                   <label className="block text-xs font-semibold text-slate-700 mb-1">Title</label>
+                   <input
+                     type="text"
+                     required
+                     value={milestoneFormData.title}
+                     onChange={(e) => setMilestoneFormData({ ...milestoneFormData, title: e.target.value })}
+                     className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
+                     placeholder="e.g. Company Founded"
+                   />
+                 </div>
+
+                 <div>
+                   <label className="block text-xs font-semibold text-slate-700 mb-1">Description</label>
+                   <textarea
+                     value={milestoneFormData.description}
+                     onChange={(e) => setMilestoneFormData({ ...milestoneFormData, description: e.target.value })}
+                     className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all resize-none"
+                     rows="3"
+                     placeholder="Brief description of this milestone..."
+                   />
+                 </div>
+
+                 <div>
+                   <label className="block text-xs font-semibold text-slate-700 mb-1">Color</label>
+                   <div className="flex items-center gap-3">
+                     <input
+                       type="color"
+                       value={milestoneFormData.color}
+                       onChange={(e) => setMilestoneFormData({ ...milestoneFormData, color: e.target.value })}
+                       className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer p-1"
+                     />
+                    <span className="text-xs text-slate-500">{milestoneFormData.color}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Icon</label>
+                    <select
+                      value={milestoneFormData.icon}
+                      onChange={(e) => setMilestoneFormData({ ...milestoneFormData, icon: e.target.value })}
+                      className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all bg-white"
+                    >
+                      <option value="">-- Select an icon --</option>
+                      <optgroup label="Business & Work">
+                        <option value="fa-solid fa-lightbulb">💡 Lightbulb</option>
+                        <option value="fa-solid fa-briefcase">💼 Briefcase</option>
+                        <option value="fa-solid fa-handshake">🤝 Handshake</option>
+                        <option value="fa-solid fa-building">🏢 Building</option>
+                        <option value="fa-solid fa-users">👥 Users</option>
+                        <option value="fa-solid fa-chart-line">📈 Chart Line</option>
+                        <option value="fa-solid fa-chart-bar">📊 Chart Bar</option>
+                        <option value="fa-solid fa-globe">🌍 Globe</option>
+                      </optgroup>
+                      <optgroup label="Technology & Innovation">
+                        <option value="fa-solid fa-rocket">🚀 Rocket</option>
+                        <option value="fa-solid fa-code">💻 Code</option>
+                        <option value="fa-solid fa-database">🗄️ Database</option>
+                        <option value="fa-solid fa-server">🖥️ Server</option>
+                        <option value="fa-solid fa-cloud">☁️ Cloud</option>
+                        <option value="fa-solid fa-shield-halved">🛡️ Shield</option>
+                        <option value="fa-solid fa-microchip">🔬 Microchip</option>
+                        <option value="fa-solid fa-gears">⚙️ Gears</option>
+                      </optgroup>
+                      <optgroup label="Growth & Success">
+                        <option value="fa-solid fa-trophy">🏆 Trophy</option>
+                        <option value="fa-solid fa-medal">🥇 Medal</option>
+                        <option value="fa-solid fa-star">⭐ Star</option>
+                        <option value="fa-solid fa-flag">🚩 Flag</option>
+                        <option value="fa-solid fa-mountain">⛰️ Mountain</option>
+                        <option value="fa-solid fa-arrow-trend-up">📈 Trending Up</option>
+                      </optgroup>
+                      <optgroup label="Communication & Ideas">
+                        <option value="fa-solid fa-comments">💬 Comments</option>
+                        <option value="fa-solid fa-envelope">✉️ Envelope</option>
+                        <option value="fa-solid fa-bullhorn">📢 Bullhorn</option>
+                        <option value="fa-solid fa-lightbulb">💡 Idea</option>
+                        <option value="fa-solid fa-pen-to-square">📝 Pen</option>
+                      </optgroup>
+                    </select>
+                    {milestoneFormData.icon && (
+                      <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                        <span>Preview:</span>
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-50 border border-slate-200">
+                          <i className={milestoneFormData.icon} style={{ color: milestoneFormData.color }}></i>
+                          {milestoneFormData.icon}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setIsMilestoneModalOpen(false)}
+                      className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all duration-300"
+                    >
+                      Cancel
+                    </button>
+                    <button type="submit" className="px-4 py-2 text-xs font-semibold text-white bg-[#72bf24] hover:bg-[#62a71e] rounded-xl transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
+                      {milestoneModalMode === 'add' ? 'Add Milestone' : 'Update Milestone'}
+                    </button>
+                  </div>
+               </form>
+             </div>
+           </div>
+         )}
+
+         {/* ==================== ACTIVITY MODAL ==================== */}
+         {isActivityModalOpen && (
+           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+             <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+               <div className="flex items-center justify-between mb-5">
+                 <h3 className="text-base font-semibold text-slate-900">
+                   {activityModalMode === 'add' ? 'Add Monthly Activity' : 'Edit Monthly Activity'}
+                 </h3>
+                 <button
+                   onClick={() => setIsActivityModalOpen(false)}
+                   className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90"
+                 >
+                   <X className="w-5 h-5" />
+                 </button>
+               </div>
+
+               <form onSubmit={handleSaveActivity} className="space-y-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div>
+                     <label className="block text-xs font-semibold text-slate-700 mb-1">Month</label>
+                     <input
+                       type="text"
+                       required
+                       value={activityFormData.month}
+                       onChange={(e) => setActivityFormData({ ...activityFormData, month: e.target.value })}
+                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
+                       placeholder="e.g. January"
+                     />
+                   </div>
+                   <div>
+                     <label className="block text-xs font-semibold text-slate-700 mb-1">Display Order</label>
+                     <input
+                       type="number"
+                       value={activityFormData.displayOrder}
+                       onChange={(e) => setActivityFormData({ ...activityFormData, displayOrder: Number(e.target.value) })}
+                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
+                       placeholder="0"
+                     />
+                   </div>
+                 </div>
+
+                 <div>
+                   <label className="block text-xs font-semibold text-slate-700 mb-1">Title</label>
+                   <input
+                     type="text"
+                     required
+                     value={activityFormData.title}
+                     onChange={(e) => setActivityFormData({ ...activityFormData, title: e.target.value })}
+                     className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
+                     placeholder="e.g. Product Launch"
+                   />
+                 </div>
+
+                 <div>
+                   <label className="block text-xs font-semibold text-slate-700 mb-1">Description</label>
+                   <textarea
+                     value={activityFormData.description}
+                     onChange={(e) => setActivityFormData({ ...activityFormData, description: e.target.value })}
+                     className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all resize-none"
+                     rows="3"
+                     placeholder="Details about this month's activity..."
+                   />
+                 </div>
+
+                 <div className="flex justify-end gap-3 pt-4">
+                   <button
+                     type="button"
+                     onClick={() => setIsActivityModalOpen(false)}
+                     className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all duration-300"
+                   >
+                     Cancel
+                   </button>
+                   <button type="submit" className="px-4 py-2 text-xs font-semibold text-white bg-[#72bf24] hover:bg-[#62a71e] rounded-xl transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
+                     {activityModalMode === 'add' ? 'Add Month' : 'Update Month'}
+                   </button>
+                 </div>
+               </form>
+             </div>
+           </div>
+         )}
+
+         {/* ==================== VIEW ACTIVITY MODAL ==================== */}
+         {viewActivity && (
+           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+             <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+               <div className="flex items-center justify-between mb-5">
+                 <h3 className="text-base font-semibold text-slate-900">Activity Details</h3>
+                 <button onClick={() => setViewActivity(null)} className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90">
+                   <X className="w-5 h-5" />
+                 </button>
+               </div>
+               <div className="space-y-4">
+                 <div>
+                   <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Month</label>
+                   <div className="text-sm font-semibold text-slate-900 mt-1">{viewActivity.month}</div>
+                 </div>
+                 <div>
+                   <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Title</label>
+                   <div className="text-sm text-slate-700 mt-1">{viewActivity.title}</div>
+                 </div>
+                 <div>
+                   <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</label>
+                   <div className="text-sm text-slate-700 mt-1 leading-relaxed">{viewActivity.description || 'No description provided.'}</div>
+                 </div>
+               </div>
+               <div className="flex justify-end gap-3 pt-4">
+                 <button
+                   onClick={() => { setViewActivity(null); setSelectedActivity(viewActivity); setActivityModalMode('edit'); setActivityFormData({ month: viewActivity.month, title: viewActivity.title, description: viewActivity.description || '', displayOrder: viewActivity.displayOrder || 0 }); setIsActivityModalOpen(true); }}
+                   className="px-4 py-2 text-xs font-semibold text-white bg-[#72bf24] hover:bg-[#62a71e] rounded-xl transition-all duration-300 flex items-center gap-2 hover:shadow-md hover:-translate-y-0.5"
+                 >
+                   <Pencil className="w-3.5 h-3.5" />
+                   Edit Activity
+                 </button>
+                 <button
+                   onClick={() => setViewActivity(null)}
+                   className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all duration-300"
+                 >
+                   Close
+                 </button>
+               </div>
+             </div>
+           </div>
+         )}
+
+          {/* ==================== VIEW PARTNER MODAL ==================== */}
         {viewPartner && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-base font-semibold text-slate-900">Partner Details</h3>
                 <button onClick={() => setViewPartner(null)} className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90">
@@ -6019,7 +6715,7 @@ export default function SatesoftApp() {
                   </div>
                   <div>
                     <div className="text-sm font-semibold text-slate-900">{viewPartner.name}</div>
-                    <div className="text-xs text-slate-400">{viewPartner.industry} • {viewPartner.location}</div>
+                    <div className="text-xs text-slate-400">{viewPartner.industry} â€¢ {viewPartner.location}</div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -6244,7 +6940,7 @@ export default function SatesoftApp() {
         {/* ==================== VIEW PRICING MODAL ==================== */}
         {viewPricing && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-base font-semibold text-slate-900">Pricing Plan Details</h3>
                 <button onClick={() => setViewPricing(null)} className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90">
@@ -6266,7 +6962,7 @@ export default function SatesoftApp() {
                     {viewPricing.features && viewPricing.features.length > 0 ? (
                       viewPricing.features.map((feature, index) => (
                         <li key={index} className="text-sm text-slate-700 flex items-start gap-2">
-                          <span className="text-[#72bf24] mt-1">•</span>
+                          <span className="text-[#72bf24] mt-1">â€¢</span>
                           {feature}
                         </li>
                       ))
@@ -6398,7 +7094,7 @@ export default function SatesoftApp() {
         {/* ==================== VIEW SERVICE MODAL ==================== */}
         {viewService && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-base font-semibold text-slate-900">Service Details</h3>
                 <button onClick={() => setViewService(null)} className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90">
@@ -6529,7 +7225,7 @@ export default function SatesoftApp() {
                   <div key={post.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50/80 to-white mb-3 last:mb-0">
                     <div>
                       <h4 className="text-sm font-semibold text-slate-900">{post.title}</h4>
-                      <p className="text-xs text-slate-400 mt-0.5">{post.category || 'Uncategorized'} • {post.date || 'No date'}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{post.category || 'Uncategorized'} â€¢ {post.date || 'No date'}</p>
                     </div>
                     <span className="text-sm font-semibold text-rose-600 bg-rose-50 px-3 py-1 rounded-full">{post.views || 0} views</span>
                   </div>
@@ -6548,7 +7244,7 @@ export default function SatesoftApp() {
                            <div key={sub.id} className="flex items-center justify-between py-2">
                              <div>
                                <h4 className="text-sm font-semibold text-slate-900">{sub.email}</h4>
-                               <p className="text-xs text-slate-400 mt-0.5">{sub.name || 'No name'} • {new Date(sub.subscribed_at).toLocaleDateString()}</p>
+                               <p className="text-xs text-slate-400 mt-0.5">{sub.name || 'No name'} â€¢ {new Date(sub.subscribed_at).toLocaleDateString()}</p>
                              </div>
                              <span className="text-xs font-semibold text-teal-600 bg-teal-50 px-3 py-1 rounded-full">Subscriber</span>
                            </div>
@@ -6564,4 +7260,4 @@ export default function SatesoftApp() {
       </div>
     </>
   );
-}
+};
