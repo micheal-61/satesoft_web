@@ -5,6 +5,7 @@ import { FaArrowLeft, FaArrowRight, FaCloud, FaUsers, FaRocket, FaShieldAlt, FaC
 const About = () => {
   const [isVisible, setIsVisible] = useState({});
   const [milestones, setMilestones] = useState([]);
+  const [blogs, setBlogs] = useState([]);
   const [loadingMilestones, setLoadingMilestones] = useState(true);
   const sectionRef = useRef(null);
 
@@ -27,23 +28,32 @@ const About = () => {
     return () => observer.disconnect();
   }, []);
 
-  // Fetch milestones from API
+  // Fetch milestones and blogs from API
   useEffect(() => {
-    const fetchMilestones = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch('/api/milestones');
-        if (res.ok) {
-          const data = await res.json();
-          const sorted = data.sort((a, b) => Number(b.year) - Number(a.year));
+        const [milestonesRes, blogsRes] = await Promise.all([
+          fetch('/api/milestones'),
+          fetch('/api/news')
+        ]);
+        
+        if (milestonesRes.ok) {
+          const milestonesData = await milestonesRes.json();
+          const sorted = milestonesData.sort((a, b) => Number(a.year) - Number(b.year));
           setMilestones(sorted);
         }
+        
+        if (blogsRes.ok) {
+          const blogsData = await blogsRes.json();
+          setBlogs(blogsData);
+        }
       } catch (err) {
-        console.error('Failed to fetch milestones:', err);
+        console.error('Failed to fetch data:', err);
       } finally {
         setLoadingMilestones(false);
       }
     };
-    fetchMilestones();
+    fetchData();
   }, []);
 
   // Company stats
@@ -202,23 +212,23 @@ const About = () => {
               
               </h2>
               
-              <div className="space-y-4 text-gray-600 leading-relaxed">
-                <p className="text-base">
-                  Satesoft is a premier technology solutions provider dedicated to 
-                  <span className="font-semibold text-gray-800"> empowering businesses</span> across Africa 
-                  with innovative cloud solutions, intelligent software, and actionable data analytics.
-                </p>
-                <p className="text-base">
-                  We aim to be our clients' <span className="font-semibold text-gray-800">first point of contact</span> 
-                  for all support and business development issues. Our support entails physical and remote 
-                  assistance through phone, email, and video calls where necessary.
-                </p>
-                <p className="text-base">
-                  With a team of <span className="font-semibold text-gray-800">50+ expert professionals</span>, 
-                  we deliver enterprise-grade solutions that drive <span className="font-semibold text-gray-800">digital transformation</span> 
-                  and sustainable growth for organizations across the continent.
-                </p>
-              </div>
+               <div className="space-y-4 text-gray-600 leading-relaxed">
+                 <p className="text-base font-light">
+                   Satesoft is a premier technology solutions provider dedicated to 
+                   <span className="font-semibold text-gray-800"> empowering businesses</span> across Africa 
+                   with innovative cloud solutions, intelligent software, and actionable data analytics.
+                 </p>
+                 <p className="text-base font-light">
+                   We aim to be our clients' <span className="font-semibold text-gray-800">first point of contact</span> 
+                   for all support and business development issues. Our support entails physical and remote 
+                   assistance through phone, email, and video calls where necessary.
+                 </p>
+                 <p className="text-base font-light">
+                   With a team of <span className="font-semibold text-gray-800">50+ expert professionals</span>, 
+                   we deliver enterprise-grade solutions that drive <span className="font-semibold text-gray-800">digital transformation</span> 
+                   and sustainable growth for organizations across the continent.
+                 </p>
+               </div>
 
               {/* Service Quick Links */}
               <div className="mt-8 grid grid-cols-2 gap-4">
@@ -249,7 +259,7 @@ const About = () => {
               </div>
 
               <div className="mt-8">
-                <Link to="/services" className="bg-[#72bf24] text-white px-8 py-3.5 rounded-full text-base font-semibold inline-flex items-center gap-2 hover:bg-[#62a71e] transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
+                <Link to="/services" className="bg-[#72bf24] text-white px-8 py-3.5 rounded-full text-base font-bold inline-flex items-center gap-2 hover:bg-[#62a71e] transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
                   Explore Our Solutions
                   <FaArrowRight />
                 </Link>
@@ -290,9 +300,9 @@ const About = () => {
                   <div className="w-14 h-14 rounded-xl bg-[#72bf24]/10 flex items-center justify-center group-hover:bg-[#72bf24] transition-all duration-300 group-hover:scale-110">
                     <Icon className="text-2xl text-[#72bf24] group-hover:text-white transition-colors duration-300" />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mt-4 mb-2">
-                    {value.title}
-                  </h3>
+                   <h3 className="text-2xl md:text-3xl font-light text-gray-900 mt-4 mb-2">
+                     {value.title}
+                   </h3>
                   <p className="text-gray-500 font-light leading-relaxed">
                     {value.description}
                   </p>
@@ -342,7 +352,7 @@ const About = () => {
                       <Icon className="text-xl text-[#72bf24] group-hover:text-white transition-colors duration-300" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-800 mb-1">{service.title}</h4>
+                       <h4 className="font-light text-gray-800 mb-1">{service.title}</h4>
                       <p className="text-sm text-gray-500 font-light">{service.description}</p>
                     </div>
                   </div>
@@ -381,7 +391,7 @@ const About = () => {
             <div className="flex flex-wrap justify-center gap-4">
               <Link 
                 to="/contact" 
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#72bf24] text-white font-semibold rounded-lg hover:bg-[#62a71e] transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#72bf24] text-white font-bold rounded-lg hover:bg-[#62a71e] transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
               >
                 Start Your Journey
                 <FaArrowRight />
@@ -434,12 +444,22 @@ const About = () => {
         "#ef4444",
         "#f97316",
         "#eab308",
-        "#84cc16",
         "#0ea5e9",
+        "#8b5cf6",
       ];
 
       const [currentSlide, setCurrentSlide] = useState(0);
       const [isPaused, setIsPaused] = useState(false);
+      const [hoveredCardIndex, setHoveredCardIndex] = useState(null);
+      const hasScrolledToLatest = useRef(false);
+
+      useEffect(() => {
+        if (milestones.length > 5 && !hasScrolledToLatest.current) {
+          const totalSlides = Math.ceil(milestones.length / 5);
+          setCurrentSlide(totalSlides - 1);
+          hasScrolledToLatest.current = true;
+        }
+      }, [milestones.length]);
       const totalSlides = Math.ceil(milestones.length / 5);
 
       useEffect(() => {
@@ -475,12 +495,10 @@ const About = () => {
                    data-id={`timeline-icon-${index}`}
                    style={{ animationDelay: `${index * 0.08}s` }}
                  >
-                    <i
-                      className={`${iconClass} mx-auto text-xl mb-2 font-light`}
-                      style={{
-                        color: color,
-                      }}
-                    />
+                      <i
+                        className={`${iconClass} mx-auto text-xl mb-2 font-light`}
+                        style={{ color: color }}
+                      />
                   </div>
                 );
               })}
@@ -539,12 +557,20 @@ const About = () => {
 
               {getCurrentMilestones().map((milestone, index) => {
                 const color = milestone.color || colors[index % colors.length];
+                const linkedBlog = milestone.blogSlug ? blogs.find(b => Number(b.id) === Number(milestone.blogSlug)) : null;
+                const cardDescription = linkedBlog ? (linkedBlog.excerpt || linkedBlog.content || '') : milestone.description;
+                const isLatest = milestone.id === milestones[milestones.length - 1]?.id;
+                const isHovered = hoveredCardIndex === milestone.id;
+                const borderColor = isHovered || isLatest ? '#72bf24' : '#d1d5db';
+                
                 return (
                   <div
                     key={milestone.id || index}
                     className="relative h-full carousel-item"
                     data-id={`milestone-card-${index}`}
                     style={{ animationDelay: `${index * 0.08}s` }}
+                    onMouseEnter={() => setHoveredCardIndex(milestone.id)}
+                    onMouseLeave={() => setHoveredCardIndex(null)}
                   >
 
                     {/* Connector */}
@@ -556,11 +582,11 @@ const About = () => {
                     />
 
                      {/* Card */}
-                       <Link
-                         to={`/milestone/${milestone.id}`}
-                         className="block h-full bg-white rounded-lg border border-gray-200 shadow hover:shadow-md hover:border-[#72bf24]/40 transition-all duration-300 flex flex-col cursor-pointer group border-r-2 border-b-2"
-                         style={{ borderRightColor: color, borderBottomColor: color }}
-                       >
+                      <Link
+                        to={`/milestone/${milestone.id}`}
+                        className="block h-full bg-white rounded-lg border-2 shadow hover:shadow-md transition-all duration-300 flex flex-col cursor-pointer group"
+                        style={{ borderColor: borderColor }}
+                      >
   
                         {/* Title */}
                         <div
@@ -579,12 +605,12 @@ const About = () => {
                           </h3>
                         </div>
   
-                        {/* Content */}
-                        <div className="p-3 flex-1">
-                          <p className="text-xs text-gray-600 leading-relaxed line-clamp-4">
-                            {milestone.description}
-                          </p>
-                         </div>
+                         {/* Content */}
+                         <div className="p-3 flex-1">
+                           <p className="text-xs text-gray-600 leading-relaxed line-clamp-4">
+                             {cardDescription || 'No description available.'}
+                           </p>
+                          </div>
                        </Link>
                   </div>
                 );
@@ -635,17 +661,22 @@ const About = () => {
 
               <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gray-200"></div>
 
-              {milestones.map((milestone, index) => {
-                const Icon = timelineIcons[index % timelineIcons.length];
-                const color = milestone.color || colors[index % colors.length];
-
-                return (
-                   <div
-                     key={milestone.id || index}
-                     className="relative pl-8 mb-8 carousel-item"
-                     data-id={`mobile-milestone-${index}`}
-                     style={{ animationDelay: `${index * 0.1}s` }}
-                   >
+               {milestones.map((milestone, index) => {
+                 const Icon = timelineIcons[index % timelineIcons.length];
+                 const color = milestone.color || colors[index % colors.length];
+                 const isLatest = milestone.id === milestones[milestones.length - 1]?.id;
+                 const isHovered = hoveredCardIndex === milestone.id;
+                 const borderColor = isHovered || isLatest ? '#72bf24' : '#d1d5db';
+ 
+                 return (
+                    <div
+                      key={milestone.id || index}
+                      className="relative pl-8 mb-8 carousel-item"
+                      data-id={`mobile-milestone-${index}`}
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                      onMouseEnter={() => setHoveredCardIndex(milestone.id)}
+                      onMouseLeave={() => setHoveredCardIndex(null)}
+                    >
 
                     {/* Node */}
                     <div
@@ -655,13 +686,11 @@ const About = () => {
                       }}
                     />
 
-                    <div className="flex items-center gap-2 mb-2">
-                      <i
-                        className={`${milestone.icon || timelineIcons[index % timelineIcons.length]} text-lg`}
-                        style={{
-                          color: color,
-                        }}
-                      />
+                     <div className="flex items-center gap-2 mb-2">
+                       <i
+                         className={`${milestone.icon || timelineIcons[index % timelineIcons.length]} text-lg`}
+                         style={{ color: color }}
+                       />
 
                       <span
                         className="font-light text-lg"
@@ -675,8 +704,8 @@ const About = () => {
 
                      <Link
                         to={`/milestone/${milestone.id}`}
-                        className="block bg-white rounded-lg border border-gray-200 shadow overflow-hidden cursor-pointer hover:shadow-md hover:border-[#72bf24]/40 transition-all duration-300 group border-r-2 border-b-2 h-full"
-                        style={{ borderRightColor: color, borderBottomColor: color, minHeight: '110px' }}
+                        className="block bg-white rounded-lg border-2 shadow overflow-hidden cursor-pointer hover:shadow-md transition-all duration-300 group h-full"
+                        style={{ borderColor: borderColor, minHeight: '110px' }}
                       >
   
                         <div className="p-4">

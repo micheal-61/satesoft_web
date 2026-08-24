@@ -103,20 +103,24 @@ const initializeDatabase = async () => {
   const dbPassword = process.env.DB_PASSWORD || '';
   const dbName = process.env.DB_NAME || 'satesoft_db';
 
-  let conn;
-  try {
-    // Connect without database to create DB/user if needed
-    conn = await mysql.createConnection({ host: dbHost, port: dbPort, user: 'root', password: '' });
-    await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
-    await conn.query(`CREATE USER IF NOT EXISTS '${dbUser}'@'localhost' IDENTIFIED BY '${dbPassword}'`);
-    await conn.query(`GRANT ALL PRIVILEGES ON \`${dbName}\`.* TO '${dbUser}'@'localhost'`);
-    await conn.query('FLUSH PRIVILEGES');
-    console.log(`✅ Database "${dbName}" and user "${dbUser}" ready`);
-  } catch (err) {
-    console.error('❌ DB setup error:', err.message);
-  } finally {
-    if (conn) await conn.end();
-  }
+   let conn;
+   try {
+     conn = await mysql.createConnection({ host: dbHost, port: dbPort, user: 'root', password: '' });
+     try {
+       await conn.query('REPAIR TABLE mysql.db EXTENDED');
+     } catch (repairErr) {
+       console.error('⚠️ mysql.db repair warning:', repairErr.message);
+     }
+     await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+     await conn.query(`CREATE USER IF NOT EXISTS '${dbUser}'@'localhost' IDENTIFIED BY '${dbPassword}'`);
+     await conn.query(`GRANT ALL PRIVILEGES ON \`${dbName}\`.* TO '${dbUser}'@'localhost'`);
+     await conn.query('FLUSH PRIVILEGES');
+     console.log(`✅ Database "${dbName}" and user "${dbUser}" ready`);
+   } catch (err) {
+     console.error('❌ DB setup error:', err.message);
+   } finally {
+     if (conn) await conn.end();
+   }
 
   // Now connect with the app user to create tables
   let connection;
@@ -276,6 +280,7 @@ const initializeDatabase = async () => {
       await connection.query('ALTER TABLE advisors ADD COLUMN IF NOT EXISTS email VARCHAR(255) DEFAULT NULL');
       await connection.query('ALTER TABLE advisors ADD COLUMN IF NOT EXISTS expertise VARCHAR(255) DEFAULT NULL');
       await connection.query("ALTER TABLE advisors ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT 'board'");
+      await connection.query("ALTER TABLE advisors ADD COLUMN IF NOT EXISTS role_title VARCHAR(255) DEFAULT NULL");
       const [advisorRows] = await connection.query('SELECT COUNT(*) as count FROM advisors');
     });
 
@@ -1317,6 +1322,7 @@ app.get('/api/advisors', async (req, res) => {
         firstName: row.first_name,
         lastName: row.last_name,
         roleId: row.role_id,
+        roleTitle: row.role_title,
         order: row.advisor_order,
         isActive,
         imageUrl: row.image_url || null,
@@ -1348,6 +1354,7 @@ app.get('/api/advisors/:id', async (req, res) => {
       firstName: row.first_name,
       lastName: row.last_name,
       roleId: row.role_id,
+      roleTitle: row.role_title,
       order: row.advisor_order,
       isActive,
       imageUrl: row.image_url || null,
@@ -1365,15 +1372,15 @@ app.get('/api/advisors/:id', async (req, res) => {
 
 app.post('/api/advisors', async (req, res) => {
   try {
-    const { firstName, lastName, roleId, advisorOrder, email, expertise, bio, imageUrl, profileLink, isActive, category } = req.body;
+    const { firstName, lastName, roleId, roleTitle, advisorOrder, email, expertise, bio, imageUrl, profileLink, isActive, category } = req.body;
     if (!firstName) {
       return res.status(400).json({ error: 'First name is required.' });
     }
     const [result] = await pool.query(
-      'INSERT INTO advisors (first_name, last_name, role_id, advisor_order, is_active, image_url, profile_link, bio, email, expertise, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [firstName, lastName || null, roleId || 0, advisorOrder || 0, isActive ? 1 : 1, normalizeImageUrl(imageUrl), profileLink || null, bio || null, email || null, expertise || null, category || 'board']
+      'INSERT INTO advisors (first_name, last_name, role_id, role_title, advisor_order, is_active, image_url, profile_link, bio, email, expertise, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [firstName, lastName || null, roleId || 0, roleTitle || null, advisorOrder || 0, isActive ? 1 : 1, normalizeImageUrl(imageUrl), profileLink || null, bio || null, email || null, expertise || null, category || 'board']
     );
-    res.status(201).json({ id: result.insertId, firstName, lastName, roleId: roleId || 0, order: advisorOrder || 0, isActive: isActive ? true : true, imageUrl: imageUrl || null, profileLink: profileLink || null, bio: bio || null, email: email || null, expertise: expertise || null, category: category || 'board' });
+    res.status(201).json({ id: result.insertId, firstName, lastName, roleId: roleId || 0, roleTitle: roleTitle || null, order: advisorOrder || 0, isActive: isActive ? true : true, imageUrl: imageUrl || null, profileLink: profileLink || null, bio: bio || null, email: email || null, expertise: expertise || null, category: category || 'board' });
   } catch (error) {
     console.error('❌ Add Advisor Error:', error);
     res.status(500).json({ error: 'Internal server error.' });
@@ -1383,15 +1390,15 @@ app.post('/api/advisors', async (req, res) => {
 app.put('/api/advisors/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, roleId, advisorOrder, email, expertise, bio, imageUrl, profileLink, isActive, category } = req.body;
+    const { firstName, lastName, roleId, roleTitle, advisorOrder, email, expertise, bio, imageUrl, profileLink, isActive, category } = req.body;
     if (!firstName) {
       return res.status(400).json({ error: 'First name is required.' });
     }
     await pool.query(
-      'UPDATE advisors SET first_name = ?, last_name = ?, role_id = ?, advisor_order = ?, is_active = ?, image_url = ?, profile_link = ?, bio = ?, email = ?, expertise = ?, category = ? WHERE id = ?',
-      [firstName, lastName || null, roleId || 0, advisorOrder || 0, isActive ? 1 : 0, normalizeImageUrl(imageUrl), profileLink || null, bio || null, email || null, expertise || null, category || 'board', id]
+      'UPDATE advisors SET first_name = ?, last_name = ?, role_id = ?, role_title = ?, advisor_order = ?, is_active = ?, image_url = ?, profile_link = ?, bio = ?, email = ?, expertise = ?, category = ? WHERE id = ?',
+      [firstName, lastName || null, roleId || 0, roleTitle || null, advisorOrder || 0, isActive ? 1 : 0, normalizeImageUrl(imageUrl), profileLink || null, bio || null, email || null, expertise || null, category || 'board', id]
     );
-    res.json({ id: Number(id), firstName, lastName, roleId: roleId || 0, order: advisorOrder || 0, isActive: isActive ? true : false, imageUrl: imageUrl || null, profileLink: profileLink || null, bio: bio || null, email: email || null, expertise: expertise || null, category: category || 'board' });
+    res.json({ id: Number(id), firstName, lastName, roleId: roleId || 0, roleTitle: roleTitle || null, order: advisorOrder || 0, isActive: isActive ? true : false, imageUrl: imageUrl || null, profileLink: profileLink || null, bio: bio || null, email: email || null, expertise: expertise || null, category: category || 'board' });
   } catch (error) {
     console.error('❌ Update Advisor Error:', error);
     res.status(500).json({ error: 'Internal server error.' });
@@ -1424,6 +1431,7 @@ app.get('/api/milestones', async (req, res) => {
       color: row.color || '#72bf24',
       displayOrder: row.display_order,
       icon: row.icon || '',
+      blogSlug: row.blog_slug || null,
     })));
   } catch (error) {
     console.error('❌ List Milestones Error:', error);
@@ -1447,6 +1455,7 @@ app.get('/api/milestones/:id', async (req, res) => {
       color: row.color || '#72bf24',
       displayOrder: row.display_order,
       icon: row.icon || '',
+      blogSlug: row.blog_slug || null,
     });
   } catch (error) {
     console.error('❌ Get Milestone Error:', error);
@@ -1456,15 +1465,15 @@ app.get('/api/milestones/:id', async (req, res) => {
 
 app.post('/api/milestones', async (req, res) => {
   try {
-    const { year, title, description, color, displayOrder, icon } = req.body;
+    const { year, title, description, color, displayOrder, icon, blogSlug } = req.body;
     if (!year || !title) {
       return res.status(400).json({ error: 'Year and title are required.' });
     }
     const [result] = await pool.query(
-      'INSERT INTO milestones (year, title, description, color, display_order, icon) VALUES (?, ?, ?, ?, ?, ?)',
-      [year, title, description || null, color || '#72bf24', displayOrder || 0, icon || null]
+      'INSERT INTO milestones (year, title, description, color, display_order, icon, blog_slug) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [year, title, description || null, color || '#72bf24', displayOrder || 0, icon || null, blogSlug || null]
     );
-    res.status(201).json({ id: result.insertId, year, title, description: description || null, color: color || '#72bf24', displayOrder: displayOrder || 0, icon: icon || '' });
+    res.status(201).json({ id: result.insertId, year, title, description: description || null, color: color || '#72bf24', displayOrder: displayOrder || 0, icon: icon || '', blogSlug: blogSlug || null });
   } catch (error) {
     console.error('❌ Add Milestone Error:', error);
     res.status(500).json({ error: 'Internal server error.' });
@@ -1474,15 +1483,15 @@ app.post('/api/milestones', async (req, res) => {
 app.put('/api/milestones/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { year, title, description, color, displayOrder, icon } = req.body;
+    const { year, title, description, color, displayOrder, icon, blogSlug } = req.body;
     if (!year || !title) {
       return res.status(400).json({ error: 'Year and title are required.' });
     }
     await pool.query(
-      'UPDATE milestones SET year = ?, title = ?, description = ?, color = ?, display_order = ?, icon = ? WHERE id = ?',
-      [year, title, description || null, color || '#72bf24', displayOrder || 0, icon || null, id]
+      'UPDATE milestones SET year = ?, title = ?, description = ?, color = ?, display_order = ?, icon = ?, blog_slug = ? WHERE id = ?',
+      [year, title, description || null, color || '#72bf24', displayOrder || 0, icon || null, blogSlug || null, id]
     );
-    res.json({ id: Number(id), year, title, description: description || null, color: color || '#72bf24', displayOrder: displayOrder || 0, icon: icon || '' });
+    res.json({ id: Number(id), year, title, description: description || null, color: color || '#72bf24', displayOrder: displayOrder || 0, icon: icon || '', blogSlug: blogSlug || null });
   } catch (error) {
     console.error('❌ Update Milestone Error:', error);
     res.status(500).json({ error: 'Internal server error.' });
@@ -1538,6 +1547,8 @@ app.get('/api/milestones/:id/activities', async (req, res) => {
       title: row.title,
       description: row.description,
       displayOrder: row.display_order,
+      activityDate: row.activity_date || null,
+      blogSlug: row.blog_slug || null,
     })));
   } catch (error) {
     console.error('❌ List Milestone Activities Error:', error);
@@ -1545,18 +1556,41 @@ app.get('/api/milestones/:id/activities', async (req, res) => {
   }
 });
 
+app.get('/api/milestones/:id/activities/date/:date', async (req, res) => {
+  try {
+    const { id, date } = req.params;
+    const [rows] = await pool.query(
+      'SELECT * FROM milestone_activities WHERE milestone_id = ? AND activity_date = ? ORDER BY display_order, id',
+      [id, date]
+    );
+    res.json(rows.map((row) => ({
+      id: row.id,
+      milestoneId: row.milestone_id,
+      month: row.month,
+      title: row.title,
+      description: row.description,
+      displayOrder: row.display_order,
+      activityDate: row.activity_date || null,
+      blogSlug: row.blog_slug || null,
+    })));
+  } catch (error) {
+    console.error('❌ List Activities by Date Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 app.post('/api/milestones/:id/activities', async (req, res) => {
   try {
     const { id } = req.params;
-    const { month, title, description, displayOrder } = req.body;
+    const { month, title, description, displayOrder, activityDate, blogSlug } = req.body;
     if (!month || !title) {
       return res.status(400).json({ error: 'Month and title are required.' });
     }
     const [result] = await pool.query(
-      'INSERT INTO milestone_activities (milestone_id, month, title, description, display_order) VALUES (?, ?, ?, ?, ?)',
-      [id, month, title, description || null, displayOrder || 0]
+      'INSERT INTO milestone_activities (milestone_id, month, title, description, display_order, activity_date, blog_slug) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [id, month, title, description || null, displayOrder || 0, activityDate || null, blogSlug || null]
     );
-    res.status(201).json({ id: result.insertId, milestoneId: Number(id), month, title, description: description || null, displayOrder: displayOrder || 0 });
+    res.status(201).json({ id: result.insertId, milestoneId: Number(id), month, title, description: description || null, displayOrder: displayOrder || 0, activityDate: activityDate || null, blogSlug: blogSlug || null });
   } catch (error) {
     console.error('❌ Add Milestone Activity Error:', error);
     res.status(500).json({ error: 'Internal server error.' });
@@ -1566,15 +1600,15 @@ app.post('/api/milestones/:id/activities', async (req, res) => {
 app.put('/api/milestone-activities/:activityId', async (req, res) => {
   try {
     const { activityId } = req.params;
-    const { month, title, description, displayOrder } = req.body;
+    const { month, title, description, displayOrder, activityDate, blogSlug } = req.body;
     if (!month || !title) {
       return res.status(400).json({ error: 'Month and title are required.' });
     }
     await pool.query(
-      'UPDATE milestone_activities SET month = ?, title = ?, description = ?, display_order = ? WHERE id = ?',
-      [month, title, description || null, displayOrder || 0, activityId]
+      'UPDATE milestone_activities SET month = ?, title = ?, description = ?, display_order = ?, activity_date = ?, blog_slug = ? WHERE id = ?',
+      [month, title, description || null, displayOrder || 0, activityDate || null, blogSlug || null, activityId]
     );
-    res.json({ id: Number(activityId), month, title, description: description || null, displayOrder: displayOrder || 0 });
+    res.json({ id: Number(activityId), month, title, description: description || null, displayOrder: displayOrder || 0, activityDate: activityDate || null, blogSlug: blogSlug || null });
   } catch (error) {
     console.error('❌ Update Milestone Activity Error:', error);
     res.status(500).json({ error: 'Internal server error.' });

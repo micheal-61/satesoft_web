@@ -6,6 +6,16 @@ import {
   FaQuoteLeft, FaQuoteRight, FaStar, FaHeart, FaLightbulb
 } from "react-icons/fa";
 
+const safeImageUrl = (url) => {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('/')) return trimmed;
+  if (trimmed.startsWith('data:')) return trimmed;
+  return '/' + trimmed;
+};
+
 const Board = () => {
   const [advisors, setAdvisors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +39,8 @@ const Board = () => {
     fetchAdvisors();
   }, []);
 
-  const getRoleName = (roleId) => {
+  const getRoleName = (roleId, roleTitle) => {
+    if (roleTitle && roleTitle.trim()) return roleTitle.trim();
     const roles = {
       1: 'Board Member',
       2: 'Advisor',
@@ -85,12 +96,12 @@ const Board = () => {
       <section className="min-h-[80vh] flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
         <div className="text-center max-w-md mx-auto p-8 bg-white rounded-2xl shadow-lg border border-gray-100">
           <div className="text-5xl mb-4">⚠️</div>
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">Unable to load team</h3>
-          <p className="text-gray-500">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-4 px-6 py-2 bg-[#72bf24] text-white rounded-lg hover:bg-[#62a71e] transition-colors"
-          >
+           <h3 className="text-xl font-light text-gray-800 mb-2">Unable to load team</h3>
+           <p className="text-gray-500 font-light">{error}</p>
+           <button 
+             onClick={() => window.location.reload()} 
+             className="mt-4 px-6 py-2 bg-[#72bf24] text-white font-bold rounded-lg hover:bg-[#62a71e] transition-colors"
+           >
             Try Again
           </button>
         </div>
@@ -100,9 +111,10 @@ const Board = () => {
 
   const renderMemberCard = (member, index) => {
     const fullName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
-    const roleName = getRoleName(member.roleId);
+    const roleName = getRoleName(member.roleId, member.roleTitle);
     const roleColor = getRoleColor(member.roleId);
     const messageLabel = `Message from ${member.firstName || 'member'}`;
+    const imageSrc = safeImageUrl(member.imageUrl);
     
     return (
       <div 
@@ -115,25 +127,38 @@ const Board = () => {
         
         {/* Content */}
         <div className="p-6 md:p-8 flex flex-col relative">
-          <div className="flex-1">
-            <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2 group-hover:text-[#72bf24] transition-colors">
-              {fullName}
-            </h3>
-            
-            <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${roleColor} mb-4`}>
-              <FaBriefcase className="text-xs" />
-              {roleName}
-            </div>
-            
-            {member.bio && (
-              <div className="relative">
-                <FaQuoteLeft className="absolute -top-2 -left-1 text-[#72bf24]/20 text-2xl" />
-                <p className="text-sm text-gray-600 leading-relaxed line-clamp-3 pl-4">
-                  {member.bio}
-                </p>
+          <div className="flex items-start gap-4 mb-4">
+            {imageSrc && (
+              <div className="shrink-0 w-14 h-14 rounded-full overflow-hidden border-2 border-gray-100 shadow-sm">
+                <img 
+                  src={imageSrc} 
+                  alt={fullName}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
               </div>
             )}
+            <div className="flex-1">
+              <h3 className="text-xl md:text-2xl font-light text-gray-900 mb-2 group-hover:text-[#72bf24] transition-colors">
+                {fullName}
+              </h3>
+              <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${roleColor}`}>
+                <FaBriefcase className="text-xs" />
+                {roleName}
+              </div>
+            </div>
           </div>
+          
+          {member.bio && (
+            <div className="relative">
+              <FaQuoteLeft className="absolute -top-2 -left-1 text-[#72bf24]/20 text-2xl" />
+              <p className="text-sm text-gray-600 leading-relaxed line-clamp-3 pl-4 font-light">
+                {member.bio}
+              </p>
+            </div>
+          )}
           
           <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
             <Link 
@@ -242,9 +267,10 @@ const Board = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredAdvisors.map((advisor, index) => {
               const fullName = `${advisor.firstName || ''} ${advisor.lastName || ''}`.trim();
-              const roleName = getRoleName(advisor.roleId);
+              const roleName = getRoleName(advisor.roleId, advisor.roleTitle);
               const roleColor = getRoleColor(advisor.roleId);
               const messageLabel = `Message from ${advisor.firstName || 'member'}`;
+              const imageSrc = safeImageUrl(advisor.imageUrl);
               
               return (
                 <div 
@@ -257,25 +283,38 @@ const Board = () => {
                   
                   {/* Content */}
                   <div className="p-4 md:p-5 flex flex-col relative">
-                    <div className="flex-1">
-                      <h3 className="text-base md:text-lg font-bold text-gray-900 mb-1 group-hover:text-[#72bf24] transition-colors">
-                        {fullName}
-                      </h3>
-                      
-                      <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${roleColor} mb-3`}>
-                        <FaBriefcase className="text-[10px]" />
-                        {roleName}
-                      </div>
-                      
-                      {advisor.bio && (
-                        <div className="relative">
-                          <FaQuoteLeft className="absolute -top-1 -left-0.5 text-[#72bf24]/20 text-lg" />
-                          <p className="text-xs text-gray-600 leading-relaxed line-clamp-2 pl-3">
-                            {advisor.bio}
-                          </p>
+                    <div className="flex items-start gap-3 mb-3">
+                      {imageSrc && (
+                        <div className="shrink-0 w-10 h-10 rounded-full overflow-hidden border border-gray-100 shadow-sm">
+                          <img 
+                            src={imageSrc} 
+                            alt={fullName}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
                         </div>
                       )}
+                      <div className="flex-1">
+                        <h3 className="text-base md:text-lg font-light text-gray-900 mb-1 group-hover:text-[#72bf24] transition-colors">
+                          {fullName}
+                        </h3>
+                        <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${roleColor}`}>
+                          <FaBriefcase className="text-[10px]" />
+                          {roleName}
+                        </div>
+                      </div>
                     </div>
+                    
+                    {advisor.bio && (
+                      <div className="relative">
+                        <FaQuoteLeft className="absolute -top-1 -left-0.5 text-[#72bf24]/20 text-lg" />
+                         <p className="text-xs text-gray-600 leading-relaxed line-clamp-2 pl-3 font-light">
+                           {advisor.bio}
+                         </p>
+                      </div>
+                    )}
                     
                     <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
                       <Link 

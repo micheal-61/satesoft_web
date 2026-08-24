@@ -2,11 +2,14 @@
 import {
   LayoutGrid,
   Box,
+  Package,
   ChevronDown,
   ChevronUp,
   ShoppingBag,
   Users,
+  Handshake,
   Mail,
+  Inbox,
   Newspaper,
   Building2,
   ShieldCheck,
@@ -30,6 +33,7 @@ import {
   Download,
   UserPlus,
   Activity,
+  Rocket,
   Briefcase as BriefcaseIcon,
   User,
   MapPin,
@@ -37,7 +41,6 @@ import {
   Award,
   Circle,
   PieChart,
-  Inbox,
   Send,
   Star,
   Trash as TrashIcon,
@@ -68,7 +71,8 @@ import {
   MoreHorizontal,
   Copy,
   ExternalLink,
-  Sparkles
+  Sparkles,
+  Scale
 } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
@@ -99,12 +103,13 @@ export default function SatesoftApp() {
 
   const apiFetch = async (endpoint, options = {}) => {
     try {
+      const cleanToken = token ? String(token).trim() : '';
       const response = await axios({
         url: API_URL + endpoint,
         ...options,
         headers: {
           ...options.headers,
-          ...(token ? { Authorization: 'Bearer ' + token } : {}),
+          ...(cleanToken ? { Authorization: 'Bearer ' + cleanToken } : {}),
         },
       });
       if (response.status < 200 || response.status >= 300) {
@@ -113,6 +118,10 @@ export default function SatesoftApp() {
       return response.data;
     } catch (err) {
       console.error('API error [' + (options.method || 'GET') + ' ' + endpoint + ']:', err);
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        logout();
+        navigate('/admin/login', { replace: true });
+      }
       throw err;
     }
   };
@@ -386,6 +395,7 @@ export default function SatesoftApp() {
     if (activeTab === 'journey') fetchMilestones();
   }, [activeTab]);
 
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [openAccordions, setOpenAccordions] = useState({
     products: false,
     services: false,
@@ -399,6 +409,10 @@ export default function SatesoftApp() {
     settings: false,
     journey: false
   });
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => !prev);
+  };
 
   const toggleAccordion = (key) => {
     setOpenAccordions((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -515,9 +529,11 @@ export default function SatesoftApp() {
     description: '',
     color: '#72bf24',
     displayOrder: 0,
-    icon: ''
+    icon: '',
+    blogSlug: ''
   });
   const [milestoneActivities, setMilestoneActivities] = useState([]);
+  const [expandedMonths, setExpandedMonths] = useState({});
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [activityModalMode, setActivityModalMode] = useState('add');
   const [selectedActivity, setSelectedActivity] = useState(null);
@@ -525,8 +541,23 @@ export default function SatesoftApp() {
     month: '',
     title: '',
     description: '',
-    displayOrder: 0
+    displayOrder: 0,
+    activityDate: '',
+    blogSlug: ''
   });
+
+  const [dateActivities, setDateActivities] = useState([]);
+  const [isDateActivityModalOpen, setIsDateActivityModalOpen] = useState(false);
+  const [dateActivityMode, setDateActivityMode] = useState('add');
+  const [selectedDateActivity, setSelectedDateActivity] = useState(null);
+  const [dateActivityFormData, setDateActivityFormData] = useState({
+    activityDate: '',
+    title: '',
+    description: '',
+    displayOrder: 0,
+    blogSlug: ''
+  });
+  const [openMonthCalendar, setOpenMonthCalendar] = useState(null);
 
   // --- PRODUCT HANDLERS ---
   const handleOpenAddProduct = () => {
@@ -729,6 +760,8 @@ export default function SatesoftApp() {
     status: 'Active'
   });
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [opportunitySaving, setOpportunitySaving] = useState(false);
+  const [opportunityError, setOpportunityError] = useState('');
 
   const handleOpenAddOpportunity = () => {
     setOpportunityModalMode('add');
@@ -742,6 +775,7 @@ export default function SatesoftApp() {
       applications: 0,
       status: 'Active'
     });
+    setOpportunityError('');
     setIsOpportunityModalOpen(true);
   };
 
@@ -757,40 +791,49 @@ export default function SatesoftApp() {
       applications: opportunity.applications || 0,
       status: opportunity.status || 'Active'
     });
+    setOpportunityError('');
     setIsOpportunityModalOpen(true);
   };
 
   const handleSaveOpportunity = async (e) => {
     e.preventDefault();
+    setOpportunityError('');
+    setOpportunitySaving(true);
     try {
       if (opportunityModalMode === 'add') {
-        const data = await apiFetch('/jobs', {
+        await apiFetch('/jobs', {
           method: 'POST',
           data: {
             title: opportunityFormData.title,
             location: opportunityFormData.location,
             type: opportunityFormData.type,
+            keyRequirements: opportunityFormData.keyRequirements,
+            description: opportunityFormData.description,
             applications: opportunityFormData.applications,
             status: opportunityFormData.status,
           },
         });
-        setJobOpportunities([...jobOpportunities, data]);
       } else {
-        const data = await apiFetch('/jobs/' + selectedOpportunity.id, {
+        await apiFetch('/jobs/' + selectedOpportunity.id, {
           method: 'PUT',
           data: {
             title: opportunityFormData.title,
             location: opportunityFormData.location,
             type: opportunityFormData.type,
+            keyRequirements: opportunityFormData.keyRequirements,
+            description: opportunityFormData.description,
             applications: opportunityFormData.applications,
             status: opportunityFormData.status,
           },
         });
-        setJobOpportunities(jobOpportunities.map((j) => (j.id === data.id ? data : j)));
       }
+      await fetchJobOpportunities();
       setIsOpportunityModalOpen(false);
     } catch (err) {
       console.error('Failed to save opportunity:', err);
+      setOpportunityError(err.response?.data?.error || err.message || 'Failed to save opportunity. Please try again.');
+    } finally {
+      setOpportunitySaving(false);
     }
   };
 
@@ -919,7 +962,7 @@ export default function SatesoftApp() {
   const handleOpenAddMilestone = () => {
     setMilestoneModalMode('add');
     setSelectedMilestone(null);
-    setMilestoneFormData({ year: '', title: '', description: '', color: '#72bf24', displayOrder: 0, icon: '' });
+    setMilestoneFormData({ year: '', title: '', description: '', color: '#72bf24', displayOrder: 0, icon: '', blogSlug: '' });
     setIsMilestoneModalOpen(true);
   };
 
@@ -933,12 +976,14 @@ export default function SatesoftApp() {
       color: milestone.color || '#72bf24',
       displayOrder: milestone.displayOrder || 0,
       icon: milestone.icon || '',
+      blogSlug: milestone.blogSlug || '',
     });
     setIsMilestoneModalOpen(true);
   };
 
   const handleSaveMilestone = async (e) => {
     e.preventDefault();
+    console.log('Saving milestone:', milestoneFormData);
     try {
       if (milestoneModalMode === 'add') {
         await apiFetch('/milestones', {
@@ -960,6 +1005,52 @@ export default function SatesoftApp() {
     }
   };
 
+  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
+
+  const renderMonthCalendar = (monthName, year) => {
+    const monthIndex = new Date(Date.parse(monthName + ' 1, 2000')).getMonth();
+    const daysInMonth = getDaysInMonth(year, monthIndex);
+    const firstDay = getFirstDayOfMonth(year, monthIndex);
+    const monthActivities = dateActivities.filter(da => {
+      const d = new Date(da.activityDate + 'T00:00:00');
+      return d.getMonth() === monthIndex && d.getFullYear() === year;
+    });
+    const activitiesByDay = {};
+    monthActivities.forEach(da => {
+      const d = new Date(da.activityDate + 'T00:00:00');
+      const day = d.getDate();
+      if (!activitiesByDay[day]) activitiesByDay[day] = [];
+      activitiesByDay[day].push(da);
+    });
+
+    const days = [];
+    for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="h-8"></div>);
+    for (let day = 1; day <= daysInMonth; day++) {
+      const hasActivity = !!activitiesByDay[day];
+      days.push(
+        <button
+          key={day}
+          onClick={() => {
+            const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            setDateActivityFormData({ activityDate: dateStr, month: monthName, title: '', description: '', displayOrder: 0, blogSlug: '' });
+            setDateActivityMode('add');
+            setSelectedDateActivity(null);
+            setIsDateActivityModalOpen(true);
+          }}
+          className={`h-8 w-8 mx-auto flex items-center justify-center rounded-full text-xs font-medium transition-all duration-200 ${
+            hasActivity
+              ? 'bg-[#72bf24] text-white hover:bg-[#62a71e] cursor-pointer'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer'
+          }`}
+        >
+          {day}
+        </button>
+      );
+    }
+    return days;
+  };
+
   const handleDeleteMilestone = async (id) => {
     if (window.confirm('Are you sure you want to delete this milestone?')) {
       try {
@@ -979,6 +1070,8 @@ export default function SatesoftApp() {
       setViewMilestone(data);
       const activities = await apiFetch('/milestones/' + milestone.id + '/activities');
       setMilestoneActivities(activities || []);
+      const withDates = (activities || []).filter(a => a.activityDate);
+      setDateActivities(withDates);
     } catch (err) {
       console.error('Failed to fetch milestone details:', err);
       const message = err?.response?.data?.error || err?.message || 'Failed to load milestone details.';
@@ -1003,7 +1096,7 @@ export default function SatesoftApp() {
   const handleOpenAddActivity = () => {
     setActivityModalMode('add');
     setSelectedActivity(null);
-    setActivityFormData({ month: '', title: '', description: '', displayOrder: 0 });
+    setActivityFormData({ month: '', title: '', description: '', displayOrder: 0, activityDate: '', blogSlug: '' });
     setIsActivityModalOpen(true);
   };
 
@@ -1015,6 +1108,8 @@ export default function SatesoftApp() {
       title: activity.title,
       description: activity.description || '',
       displayOrder: activity.displayOrder || 0,
+      activityDate: activity.activityDate || '',
+      blogSlug: activity.blogSlug || '',
     });
     setIsActivityModalOpen(true);
   };
@@ -1057,6 +1152,71 @@ export default function SatesoftApp() {
       } catch (err) {
         console.error('Failed to delete activity:', err);
         const message = err?.response?.data?.error || err?.message || 'Failed to delete activity. Please try again.';
+        alert(message);
+      }
+    }
+  };
+
+  const fetchDateActivities = async () => {
+    if (!viewMilestone) return;
+    try {
+      const data = await apiFetch('/milestones/' + viewMilestone.id + '/activities');
+      const withDates = (data || []).filter(a => a.activityDate);
+      setDateActivities(withDates);
+    } catch (err) {
+      console.error('Failed to fetch date activities:', err);
+    }
+  };
+
+  const handleOpenAddDateActivity = () => {
+    setDateActivityMode('add');
+    setSelectedDateActivity(null);
+    setDateActivityFormData({ activityDate: '', title: '', description: '', displayOrder: 0, blogSlug: '' });
+    setIsDateActivityModalOpen(true);
+  };
+
+  const handleSaveDateActivity = async (e) => {
+    e.preventDefault();
+    if (!viewMilestone) return;
+    try {
+      const payload = {
+        month: new Date(dateActivityFormData.activityDate).toLocaleString('default', { month: 'long' }),
+        title: dateActivityFormData.title,
+        description: dateActivityFormData.description,
+        displayOrder: dateActivityFormData.displayOrder,
+        activityDate: dateActivityFormData.activityDate,
+        blogSlug: dateActivityFormData.blogSlug,
+      };
+      if (dateActivityMode === 'add') {
+        await apiFetch('/milestones/' + viewMilestone.id + '/activities', {
+          method: 'POST',
+          data: payload,
+        });
+      } else {
+        await apiFetch('/milestone-activities/' + selectedDateActivity.id, {
+          method: 'PUT',
+          data: payload,
+        });
+      }
+      setIsDateActivityModalOpen(false);
+      fetchDateActivities();
+      handleViewMilestone(viewMilestone);
+    } catch (err) {
+      console.error('Failed to save date activity:', err);
+      const message = err?.response?.data?.error || err?.message || 'Failed to save date activity. Please try again.';
+      alert(message);
+    }
+  };
+
+  const handleDeleteDateActivity = async (id) => {
+    if (window.confirm('Are you sure you want to delete this date activity?')) {
+      try {
+        await apiFetch('/milestone-activities/' + id, { method: 'DELETE' });
+        setDateActivities((prev) => prev.filter((a) => a.id !== id));
+        handleViewMilestone(viewMilestone);
+      } catch (err) {
+        console.error('Failed to delete date activity:', err);
+        const message = err?.response?.data?.error || err?.message || 'Failed to delete date activity. Please try again.';
         alert(message);
       }
     }
@@ -1220,11 +1380,14 @@ export default function SatesoftApp() {
   const [viewAdvisor, setViewAdvisor] = useState(null);
   const [advisorFormData, setAdvisorFormData] = useState({
     name: '',
-    message: '',
-    role: 'Advisor',
+    roleTitle: '',
     category: 'board',
     status: 'Active',
     order: 1,
+    message: '',
+    imageUrl: '',
+    email: '',
+    expertise: '',
   });
   const [advisorSaving, setAdvisorSaving] = useState(false);
   const [advisorError, setAdvisorError] = useState('');
@@ -1234,11 +1397,14 @@ export default function SatesoftApp() {
     setSelectedAdvisor(null);
     setAdvisorFormData({
       name: '',
-      message: '',
-      role: 'Advisor',
+      roleTitle: '',
       category: 'board',
       status: 'Active',
       order: advisors.length + 1,
+      message: '',
+      imageUrl: '',
+      email: '',
+      expertise: '',
     });
     setAdvisorError('');
     setIsAdvisorModalOpen(true);
@@ -1253,11 +1419,14 @@ export default function SatesoftApp() {
     setSelectedAdvisor(advisor);
     setAdvisorFormData({
       name: advisor.name || '',
-      message: advisor.message || '',
-      role: advisor.role || 'Advisor',
+      roleTitle: advisor.roleTitle || advisor.role || '',
       category: advisor.category || 'board',
       status: advisor.status || 'Active',
       order: advisor.order || 0,
+      message: advisor.message || advisor.bio || '',
+      imageUrl: advisor.imageUrl || '',
+      email: advisor.email || '',
+      expertise: advisor.expertise || '',
     });
     setAdvisorError('');
     setIsAdvisorModalOpen(true);
@@ -1270,7 +1439,8 @@ export default function SatesoftApp() {
       const mappedAdvisors = data.map((a) => ({
         id: a.id,
         name: (a.firstName || '') + ' ' + (a.lastName || ''),
-        role: a.roleName || 'Advisor',
+        role: a.roleTitle || a.roleName || 'Advisor',
+        roleTitle: a.roleTitle || '',
         category: a.category || 'board',
         status: a.isActive ? 'Active' : 'Inactive',
         order: a.order || 0,
@@ -1299,7 +1469,7 @@ export default function SatesoftApp() {
     setAdvisorSaving(true);
     try {
       const name = advisorFormData.name.trim() || '';
-      const role = advisorFormData.role.trim() || 'Advisor';
+      const roleTitle = advisorFormData.roleTitle.trim() || 'Advisor';
       const category = advisorFormData.category || 'board';
       
       if (!name) {
@@ -1313,46 +1483,54 @@ export default function SatesoftApp() {
           method: 'POST',
           data: {
             firstName: name,
-            role,
+            roleTitle,
             category,
             advisorOrder: advisorFormData.order,
             message: advisorFormData.message,
             bio: advisorFormData.message,
             isActive: advisorFormData.status === 'Active',
+            imageUrl: advisorFormData.imageUrl,
+            email: advisorFormData.email,
+            expertise: advisorFormData.expertise,
           },
         });
         setAdvisors([...advisors, {
           id: data.id,
           name: advisorFormData.name,
-          role: advisorFormData.role,
-          category: category,
+          roleTitle,
+          category,
           status: advisorFormData.status,
           order: advisorFormData.order,
           message: advisorFormData.message,
           bio: advisorFormData.message,
+          imageUrl: advisorFormData.imageUrl,
         }]);
       } else {
         const data = await apiFetch('/advisors/' + selectedAdvisor.id, {
           method: 'PUT',
           data: {
             firstName: name,
-            role,
+            roleTitle,
             category,
             advisorOrder: advisorFormData.order,
             message: advisorFormData.message,
             bio: advisorFormData.message,
             isActive: advisorFormData.status === 'Active',
+            imageUrl: advisorFormData.imageUrl,
+            email: advisorFormData.email,
+            expertise: advisorFormData.expertise,
           },
         });
         setAdvisors(advisors.map((a) => (a.id === data.id ? {
           ...a,
           name: advisorFormData.name,
-          role: advisorFormData.role,
-          category: category,
+          roleTitle,
+          category,
           status: advisorFormData.status,
           order: advisorFormData.order,
           message: advisorFormData.message,
           bio: advisorFormData.message,
+          imageUrl: advisorFormData.imageUrl,
         } : a)));
       }
       setIsAdvisorModalOpen(false);
@@ -3012,156 +3190,184 @@ export default function SatesoftApp() {
       `}</style>
       <div className={`admin-app flex h-screen bg-slate-50/50 text-slate-800 font-sans antialiased overflow-hidden backdrop-blur-sm ${darkMode ? 'admin-dark-mode' : ''}`} style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
         {/* Sidebar Navigation */}
-        <aside className="w-72 bg-white/95 border-r border-slate-200/80 flex flex-col p-8 gap-5 shrink-0 backdrop-blur-xl relative admin-sidebar">
+        <aside className={`bg-white/95 border-r border-slate-200/80 flex flex-col gap-5 shrink-0 backdrop-blur-xl relative admin-sidebar transition-all duration-300 ${sidebarCollapsed ? 'w-20 p-4' : 'w-72 p-8'}`}>
           {/* Vertical nav indicator line */}
-          <div className="absolute left-[22px] top-24 bottom-20 w-[2px] bg-slate-300/80 rounded-full"></div>
+          <div className={`absolute top-24 bottom-20 w-[2px] bg-slate-300/80 rounded-full transition-all duration-300 ${sidebarCollapsed ? 'left-[22px]' : 'left-[22px]'}`}></div>
 
-           <div className="text-2xl font-semibold tracking-wide px-2 py-2 select-none transition-transform duration-300 hover:scale-[1.02]">
-            <Logo textClassName="text-[#72bf24]" showText={true} />
-          </div>
+           <div className={`text-2xl font-semibold tracking-wide px-2 py-2 select-none transition-transform duration-300 hover:scale-[1.02] flex items-center justify-between`}>
+             <Logo textClassName="text-[#72bf24]" showText={!sidebarCollapsed} />
+             <button
+               onClick={toggleSidebar}
+               className="p-1.5 rounded-lg hover:bg-slate-100 transition-all duration-200 text-slate-500 hover:text-slate-700"
+             >
+               {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+             </button>
+           </div>
 
-           <nav className="flex-1 overflow-y-auto flex flex-col gap-1 text-[13px] font-medium custom-scrollbar relative">
-            {/* Dashboard Tab */}
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
-                activeTab === 'dashboard' ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20' : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <LayoutGrid className="w-4 h-4 relative z-10 nav-item-icon" />
-                <span>Dashboard</span>
-              </div>
-            </button>
+            <nav className="flex-1 overflow-y-auto flex flex-col gap-1 text-[13px] font-medium custom-scrollbar relative">
+             {/* Dashboard Tab */}
+             <button
+               onClick={() => setActiveTab('dashboard')}
+               className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
+                 activeTab === 'dashboard' ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20' : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
+               }`}
+             >
+               <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : ''}`}>
+                 <LayoutGrid className="w-4 h-4 relative z-10 nav-item-icon" />
+                 {!sidebarCollapsed && <span>Dashboard</span>}
+               </div>
+             </button>
 
-            {/* Products Dropdown Accordion */}
-            <div>
-              <button
-                onClick={() => toggleAccordion('products')}
-                className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
-                  activeTab === 'products' || activeTab === 'pricing'
-                    ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20'
-                    : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Box className="w-4 h-4 relative z-10 nav-item-icon" />
-                  <span>Products</span>
-                </div>
-                {openAccordions.products ? <ChevronUp className="w-5 h-5 relative z-10 transition-transform duration-300" /> : <ChevronDown className="w-5 h-5 text-slate-400 relative z-10 transition-transform duration-300" />}
-              </button>
+             {/* Products Dropdown Accordion */}
+             <div>
+               <button
+                 onClick={() => {
+                   if (sidebarCollapsed) {
+                     setSidebarCollapsed(false);
+                   } else {
+                     toggleAccordion('products');
+                   }
+                 }}
+                 className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
+                   activeTab === 'products' || activeTab === 'pricing'
+                     ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20'
+                     : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
+                 }`}
+               >
+                 <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : ''}`}>
+                   <Package className="w-4 h-4 relative z-10 nav-item-icon" />
+                   {!sidebarCollapsed && <span>Products</span>}
+                 </div>
+                 {!sidebarCollapsed && (openAccordions.products ? <ChevronUp className="w-5 h-5 relative z-10 transition-transform duration-300" /> : <ChevronDown className="w-5 h-5 text-slate-400 relative z-10 transition-transform duration-300" />)}
+               </button>
 
-              {openAccordions.products && (
-                <div className="pl-12 flex flex-col gap-2.5 mt-2 text-sm sidebar-accordion-content" style={{ maxHeight: '120px', opacity: 1 }}>
-                  <span
-                    onClick={() => setActiveTab('products')}
-                    className={`cursor-pointer transition-colors duration-300 ${
-                      activeTab === 'products' ? 'text-[#72bf24] font-bold' : 'text-slate-500 hover:text-[#72bf24]'
-                    }`}
-                  >
-                    All Products
-                  </span>
-                  <span
-                    onClick={() => setActiveTab('pricing')}
-                    className={`cursor-pointer transition-colors duration-300 ${
-                      activeTab === 'pricing' ? 'text-[#72bf24] font-bold' : 'text-slate-500 hover:text-[#72bf24]'
-                    }`}
-                  >
-                    Pricing
-                  </span>
-                </div>
-              )}
-            </div>
+               {openAccordions.products && !sidebarCollapsed && (
+                 <div className="pl-12 flex flex-col gap-2.5 mt-2 text-sm sidebar-accordion-content" style={{ maxHeight: '120px', opacity: 1 }}>
+                   <span
+                     onClick={() => setActiveTab('products')}
+                     className={`cursor-pointer transition-colors duration-300 ${
+                       activeTab === 'products' ? 'text-[#72bf24] font-bold' : 'text-slate-500 hover:text-[#72bf24]'
+                     }`}
+                   >
+                     All Products
+                   </span>
+                   <span
+                     onClick={() => setActiveTab('pricing')}
+                     className={`cursor-pointer transition-colors duration-300 ${
+                       activeTab === 'pricing' ? 'text-[#72bf24] font-bold' : 'text-slate-500 hover:text-[#72bf24]'
+                     }`}
+                   >
+                     Pricing
+                   </span>
+                 </div>
+               )}
+             </div>
 
-            {/* Services Dropdown Accordion */}
-            <div>
-              <button
-                onClick={() => toggleAccordion('services')}
-                className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
-                  activeTab === 'services'
-                    ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20'
-                    : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Box className="w-4 h-4 relative z-10 nav-item-icon" />
-                  <span>Services</span>
-                </div>
-                {openAccordions.services ? <ChevronUp className="w-5 h-5 relative z-10 transition-transform duration-300" /> : <ChevronDown className="w-5 h-5 text-slate-400 relative z-10 transition-transform duration-300" />}
-              </button>
+             {/* Services Dropdown Accordion */}
+             <div>
+               <button
+                 onClick={() => {
+                   if (sidebarCollapsed) {
+                     setSidebarCollapsed(false);
+                   } else {
+                     toggleAccordion('services');
+                   }
+                 }}
+                 className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
+                   activeTab === 'services'
+                     ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20'
+                     : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
+                 }`}
+               >
+                 <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : ''}`}>
+                   <Sparkles className="w-4 h-4 relative z-10 nav-item-icon" />
+                   {!sidebarCollapsed && <span>Services</span>}
+                 </div>
+                 {!sidebarCollapsed && (openAccordions.services ? <ChevronUp className="w-5 h-5 relative z-10 transition-transform duration-300" /> : <ChevronDown className="w-5 h-5 text-slate-400 relative z-10 transition-transform duration-300" />)}
+               </button>
 
-              {openAccordions.services && (
-                <div className="pl-12 flex flex-col gap-2.5 mt-2 text-sm sidebar-accordion-content" style={{ maxHeight: '120px', opacity: 1 }}>
-                  <span
-                    onClick={() => setActiveTab('services')}
-                    className={`cursor-pointer transition-colors duration-300 ${
-                      activeTab === 'services' ? 'text-[#72bf24] font-bold' : 'text-slate-500 hover:text-[#72bf24]'
-                    }`}
-                  >
-                    All Services
-                  </span>
-                </div>
-              )}
-            </div>
+               {openAccordions.services && !sidebarCollapsed && (
+                 <div className="pl-12 flex flex-col gap-2.5 mt-2 text-sm sidebar-accordion-content" style={{ maxHeight: '120px', opacity: 1 }}>
+                   <span
+                     onClick={() => setActiveTab('services')}
+                     className={`cursor-pointer transition-colors duration-300 ${
+                       activeTab === 'services' ? 'text-[#72bf24] font-bold' : 'text-slate-500 hover:text-[#72bf24]'
+                     }`}
+                   >
+                     All Services
+                   </span>
+                 </div>
+               )}
+             </div>
 
-            {/* Opportunity Management Dropdown Accordion */}
-            <div>
-              <button
-                onClick={() => toggleAccordion('opportunityMgt')}
-                className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
-                  activeTab === 'opportunities' || activeTab === 'applicants'
-                    ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20'
-                    : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <ShoppingBag className="w-4 h-4 nav-item-icon" />
-                  <span>Opportunity Mgt</span>
-                </div>
-                {openAccordions.opportunityMgt ? <ChevronUp className="w-5 h-5 relative z-10 transition-transform duration-300" /> : <ChevronDown className="w-5 h-5 text-slate-400 relative z-10 transition-transform duration-300" />}
-              </button>
+             {/* Opportunity Management Dropdown Accordion */}
+             <div>
+               <button
+                 onClick={() => {
+                   if (sidebarCollapsed) {
+                     setSidebarCollapsed(false);
+                   } else {
+                     toggleAccordion('opportunityMgt');
+                   }
+                 }}
+                 className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
+                   activeTab === 'opportunities' || activeTab === 'applicants'
+                     ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20'
+                     : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
+                 }`}
+               >
+                 <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : ''}`}>
+                   <Briefcase className="w-4 h-4 nav-item-icon" />
+                   {!sidebarCollapsed && <span>Opportunity Mgt</span>}
+                 </div>
+                 {!sidebarCollapsed && (openAccordions.opportunityMgt ? <ChevronUp className="w-5 h-5 relative z-10 transition-transform duration-300" /> : <ChevronDown className="w-5 h-5 text-slate-400 relative z-10 transition-transform duration-300" />)}
+               </button>
 
-              {openAccordions.opportunityMgt && (
-                <div className="pl-12 flex flex-col gap-2.5 mt-2 text-sm sidebar-accordion-content" style={{ maxHeight: '120px', opacity: 1 }}>
-                  <span
-                    onClick={() => setActiveTab('opportunities')}
-                    className={`cursor-pointer transition-colors duration-300 ${
-                      activeTab === 'opportunities' ? 'text-[#72bf24] font-bold' : 'text-slate-500 hover:text-[#72bf24]'
-                    }`}
-                  >
-                    Opportunities
-                  </span>
-                  <span
-                    onClick={() => setActiveTab('applicants')}
-                    className={`cursor-pointer transition-colors duration-300 ${
-                      activeTab === 'applicants' ? 'text-[#72bf24] font-bold' : 'text-slate-500 hover:text-[#72bf24]'
-                    }`}
-                  >
-                    Applicants
-                  </span>
-                </div>
-              )}
-            </div>
+               {openAccordions.opportunityMgt && !sidebarCollapsed && (
+                 <div className="pl-12 flex flex-col gap-2.5 mt-2 text-sm sidebar-accordion-content" style={{ maxHeight: '120px', opacity: 1 }}>
+                   <span
+                     onClick={() => setActiveTab('opportunities')}
+                     className={`cursor-pointer transition-colors duration-300 ${
+                       activeTab === 'opportunities' ? 'text-[#72bf24] font-bold' : 'text-slate-500 hover:text-[#72bf24]'
+                     }`}
+                   >
+                     Opportunities
+                   </span>
+                   <span
+                     onClick={() => setActiveTab('applicants')}
+                     className={`cursor-pointer transition-colors duration-300 ${
+                       activeTab === 'applicants' ? 'text-[#72bf24] font-bold' : 'text-slate-500 hover:text-[#72bf24]'
+                     }`}
+                   >
+                     Applicants
+                   </span>
+                 </div>
+               )}
+             </div>
 
             {/* Partner Management Dropdown Accordion */}
             <div>
-              <button
-                onClick={() => {
-                  toggleAccordion('partner');
-                  setActiveTab('partner-list');
-                }}
+               <button
+                 onClick={() => {
+                   if (sidebarCollapsed) {
+                     setSidebarCollapsed(false);
+                   } else {
+                     toggleAccordion('partner');
+                     setActiveTab('partner-list');
+                   }
+                 }}
                 className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
                   activeTab === 'partner-list' ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20' : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <Users className="w-4 h-4 nav-item-icon" />
-                  <span>Partner Management</span>
-                </div>
-                {openAccordions.partner ? <ChevronUp className="w-5 h-5 relative z-10 transition-transform duration-300" /> : <ChevronDown className="w-5 h-5 text-slate-400 relative z-10 transition-transform duration-300" />}
+                 <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : ''}`}>
+                   <Handshake className="w-4 h-4 nav-item-icon" />
+                   {!sidebarCollapsed && <span>Partner Management</span>}
+                 </div>
+                 {!sidebarCollapsed && (openAccordions.partner ? <ChevronUp className="w-5 h-5 relative z-10 transition-transform duration-300" /> : <ChevronDown className="w-5 h-5 text-slate-400 relative z-10 transition-transform duration-300" />)}
               </button>
 
-              {openAccordions.partner && (
+               {openAccordions.partner && !sidebarCollapsed && (
                 <div className="pl-12 flex flex-col gap-2.5 mt-2 text-sm sidebar-accordion-content" style={{ maxHeight: '120px', opacity: 1 }}>
                   <span
                     onClick={() => setActiveTab('partner-list')}
@@ -3182,55 +3388,67 @@ export default function SatesoftApp() {
                 activeTab === 'mailbox' ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20' : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <Mail className="w-4 h-4 nav-item-icon" />
-                <span>Mailbox</span>
-              </div>
-              <span className="bg-[#eaf6de] text-[#5b9b1d] text-xs px-2.5 py-1 rounded-full font-bold transition-all duration-300 hover:scale-105">
-                {emails.filter(e => !e.read).length}
-              </span>
+               <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : ''}`}>
+                 <Inbox className="w-4 h-4 relative z-10 nav-item-icon" />
+                 {!sidebarCollapsed && <span>Mailbox</span>}
+               </div>
+                {!sidebarCollapsed && (
+                 <span className="bg-[#eaf6de] text-[#5b9b1d] text-xs px-2.5 py-1 rounded-full font-bold transition-all duration-300 hover:scale-105">
+                   {emails.filter(e => !e.read).length}
+                 </span>
+               )}
             </button>
 
-            {/* Company News */}
-            <button
-              onClick={() => setActiveTab('news')}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
-                activeTab === 'news' ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20' : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
-              }`}
-            >
-              <Newspaper className="w-4 h-4 relative z-10 nav-item-icon" />
-              <span>Company News</span>
-            </button>
+             {/* Company News */}
+             <button
+               onClick={() => setActiveTab('news')}
+               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
+                 activeTab === 'news' ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20' : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
+               }`}
+             >
+               <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : ''}`}>
+                 <Newspaper className="w-4 h-4 relative z-10 nav-item-icon" />
+                 {!sidebarCollapsed && <span>Company News</span>}
+               </div>
+             </button>
 
-            {/* Journey / Milestones */}
-            <button
-              onClick={() => setActiveTab('journey')}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
-                activeTab === 'journey' ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20' : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
-              }`}
-            >
-              <Activity className="w-4 h-4 relative z-10 nav-item-icon" />
-              <span>Journey</span>
-            </button>
+             {/* Journey / Milestones */}
+             <button
+               onClick={() => setActiveTab('journey')}
+               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
+                 activeTab === 'journey' ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20' : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
+               }`}
+             >
+               <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : ''}`}>
+                 <Rocket className="w-4 h-4 relative z-10 nav-item-icon" />
+                 {!sidebarCollapsed && <span>Journey</span>}
+               </div>
+             </button>
 
             {/* Corporate Mgt Dropdown Accordion with Board of Advisors */}
             <div>
-              <button
-                onClick={() => toggleAccordion('corporateMgt')}
-                className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
-                  activeTab === 'board-of-advisors' 
-                    ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20' 
-                    : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Building2 className="w-4 h-4 relative z-10 nav-item-icon" />
-                  <span>Corporate Mgt</span>
-                </div>
-                {openAccordions.corporateMgt ? <ChevronUp className="w-5 h-5 relative z-10 transition-transform duration-300" /> : <ChevronDown className="w-5 h-5 text-slate-400 relative z-10 transition-transform duration-300" />}
-              </button>
+               <button
+                 onClick={() => {
+                   if (sidebarCollapsed) {
+                     setSidebarCollapsed(false);
+                   } else {
+                     toggleAccordion('corporateMgt');
+                   }
+                 }}
+                 className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
+                   activeTab === 'board-of-advisors' 
+                     ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20' 
+                     : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
+                 }`}
+               >
+                 <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : ''}`}>
+                   <Building2 className="w-4 h-4 relative z-10 nav-item-icon" />
+                   {!sidebarCollapsed && <span>Corporate Mgt</span>}
+                 </div>
+                 {!sidebarCollapsed && (openAccordions.corporateMgt ? <ChevronUp className="w-5 h-5 relative z-10 transition-transform duration-300" /> : <ChevronDown className="w-5 h-5 text-slate-400 relative z-10 transition-transform duration-300" />)}
+               </button>
 
-              {openAccordions.corporateMgt && (
+               {openAccordions.corporateMgt && !sidebarCollapsed && (
                 <div className="pl-12 flex flex-col gap-2.5 mt-2 text-sm sidebar-accordion-content" style={{ maxHeight: '120px', opacity: 1 }}>
                   <span
                     onClick={() => setActiveTab('board-of-advisors')}
@@ -3254,22 +3472,28 @@ export default function SatesoftApp() {
 
             {/* Legal & Compliance Dropdown Accordion */}
             <div>
-              <button
-                onClick={() => toggleAccordion('legalMgt')}
-                className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
-                  activeTab.startsWith('legal-') 
-                    ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20' 
-                    : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <ShieldCheck className="w-4 h-4 relative z-10 nav-item-icon" />
-                  <span>Legal & Compliance</span>
-                </div>
-                {openAccordions.legalMgt ? <ChevronUp className="w-5 h-5 relative z-10 transition-transform duration-300" /> : <ChevronDown className="w-5 h-5 text-slate-400 relative z-10 transition-transform duration-300" />}
-              </button>
+               <button
+                 onClick={() => {
+                   if (sidebarCollapsed) {
+                     setSidebarCollapsed(false);
+                   } else {
+                     toggleAccordion('legalMgt');
+                   }
+                 }}
+                 className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
+                   activeTab.startsWith('legal-') 
+                     ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20' 
+                     : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
+                 }`}
+               >
+                 <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : ''}`}>
+                   <Scale className="w-4 h-4 relative z-10 nav-item-icon" />
+                   {!sidebarCollapsed && <span>Legal & Compliance</span>}
+                 </div>
+                 {!sidebarCollapsed && (openAccordions.legalMgt ? <ChevronUp className="w-5 h-5 relative z-10 transition-transform duration-300" /> : <ChevronDown className="w-5 h-5 text-slate-400 relative z-10 transition-transform duration-300" />)}
+               </button>
 
-              {openAccordions.legalMgt && (
+               {openAccordions.legalMgt && !sidebarCollapsed && (
                 <div className="pl-12 flex flex-col gap-2.5 mt-2 text-sm sidebar-accordion-content" style={{ maxHeight: '320px', opacity: 1 }}>
                   <span
                     onClick={() => setActiveTab('legal-service-agreement')}
@@ -3320,22 +3544,28 @@ export default function SatesoftApp() {
 
             {/* Settings Dropdown Accordion */}
             <div>
-              <button
-                onClick={() => toggleAccordion('settings')}
-                className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
-                  activeTab === 'settings' || activeTab === 'manage-account'
-                    ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20'
-                    : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Settings className="w-4 h-4 relative z-10 nav-item-icon" />
-                  <span>Settings</span>
-                </div>
-                {openAccordions.settings ? <ChevronUp className="w-5 h-5 relative z-10 transition-transform duration-300" /> : <ChevronDown className="w-5 h-5 text-slate-400 relative z-10 transition-transform duration-300" />}
-              </button>
+               <button
+                 onClick={() => {
+                   if (sidebarCollapsed) {
+                     setSidebarCollapsed(false);
+                   } else {
+                     toggleAccordion('settings');
+                   }
+                 }}
+                 className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-300 w-full text-left cursor-pointer relative z-10 ${
+                   activeTab === 'settings' || activeTab === 'manage-account'
+                     ? 'bg-[#72bf24] text-white shadow-md shadow-[#72bf24]/20'
+                     : 'text-slate-600 hover:bg-slate-100 hover:translate-x-0.5'
+                 }`}
+               >
+                 <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : ''}`}>
+                   <Settings className="w-4 h-4 relative z-10 nav-item-icon" />
+                   {!sidebarCollapsed && <span>Settings</span>}
+                 </div>
+                 {!sidebarCollapsed && (openAccordions.settings ? <ChevronUp className="w-5 h-5 relative z-10 transition-transform duration-300" /> : <ChevronDown className="w-5 h-5 text-slate-400 relative z-10 transition-transform duration-300" />)}
+               </button>
 
-              {openAccordions.settings && (
+               {openAccordions.settings && !sidebarCollapsed && (
                 <div className="pl-12 flex flex-col gap-2.5 mt-2 text-sm sidebar-accordion-content" style={{ maxHeight: '120px', opacity: 1 }}>
                   <span
                     onClick={() => setActiveTab('settings')}
@@ -3360,19 +3590,19 @@ export default function SatesoftApp() {
               )}
             </div>
 
-            {/* Logout */}
-            <button
-              onClick={() => {
-                if (window.confirm('Are you sure you want to logout?')) {
-                  logout();
-                  navigate('/');
-                }
-              }}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 w-full text-left cursor-pointer text-red-600 hover:bg-red-50 hover:text-red-700 mt-2 relative z-10"
-            >
-              <LogOut className="w-4 h-4 relative z-10 nav-item-icon" />
-              <span>Logout</span>
-            </button>
+             {/* Logout */}
+             <button
+               onClick={() => {
+                 if (window.confirm('Are you sure you want to logout?')) {
+                   logout();
+                   navigate('/');
+                 }
+               }}
+               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 w-full text-left cursor-pointer text-red-600 hover:bg-red-50 hover:text-red-700 mt-2 relative z-10 ${sidebarCollapsed ? 'justify-center' : ''}`}
+             >
+               <LogOut className="w-4 h-4 relative z-10 nav-item-icon" />
+               {!sidebarCollapsed && <span>Logout</span>}
+             </button>
           </nav>
         </aside>
 
@@ -3538,11 +3768,11 @@ export default function SatesoftApp() {
                           <div className="flex items-center gap-2">
                             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
                             <span className="text-sm text-slate-600">{item.label}</span>
-                          </div>
-                          <span className="text-sm font-semibold text-slate-900">{item.value.toLocaleString()}</span>
-                        </div>
-                      ))}
-                    </div>
+                           </div>
+                           <span className="text-sm font-semibold text-slate-900">{item.value.toLocaleString()}</span>
+                         </div>
+                       ))}
+                     </div>
                     <div className="mt-4 pt-4 border-t border-slate-100 flex gap-2">
                       <button className="px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-all duration-300">Read</button>
                       <button className="px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-all duration-300">Replied</button>
@@ -4490,42 +4720,53 @@ export default function SatesoftApp() {
                     </div>
                   )}
 
-                      <form onSubmit={handleSaveAdvisor} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-700 mb-1">Name</label>
-                            <input
-                              type="text"
-                              required
-                              value={advisorFormData.name}
-                              onChange={(e) => setAdvisorFormData({ ...advisorFormData, name: e.target.value })}
-                              className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
-                              placeholder="e.g. Samuel Otieno"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-700 mb-1">Role</label>
-                            <input
-                              type="text"
-                              required
-                              value={advisorFormData.role}
-                              onChange={(e) => setAdvisorFormData({ ...advisorFormData, role: e.target.value })}
-                              className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
-                              placeholder="e.g. Board Member, Advisor"
-                            />
-                          </div>
+                       <form onSubmit={handleSaveAdvisor} className="space-y-4">
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div>
+                             <label className="block text-xs font-semibold text-slate-700 mb-1">Name</label>
+                             <input
+                               type="text"
+                               required
+                               value={advisorFormData.name}
+                               onChange={(e) => setAdvisorFormData({ ...advisorFormData, name: e.target.value })}
+                               className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
+                               placeholder="e.g. Samuel Otieno"
+                             />
+                           </div>
+                           <div>
+                             <label className="block text-xs font-semibold text-slate-700 mb-1">Role Title</label>
+                             <input
+                               type="text"
+                               required
+                               value={advisorFormData.roleTitle}
+                               onChange={(e) => setAdvisorFormData({ ...advisorFormData, roleTitle: e.target.value })}
+                               className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
+                               placeholder="e.g. Chairperson, Treasurer, Secretary"
+                             />
+                           </div>
+                         </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Image URL</label>
+                          <input
+                            type="text"
+                            value={advisorFormData.imageUrl}
+                            onChange={(e) => setAdvisorFormData({ ...advisorFormData, imageUrl: e.target.value })}
+                            className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
+                            placeholder="https://example.com/photo.jpg or /uploads/image.jpg"
+                          />
                         </div>
 
-                       <div>
-                         <label className="block text-xs font-semibold text-slate-700 mb-1">Message</label>
-                         <textarea
-                           rows="4"
-                           value={advisorFormData.message}
-                           onChange={(e) => setAdvisorFormData({ ...advisorFormData, message: e.target.value })}
-                           className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all resize-none"
-                           placeholder="Message from the advisor..."
-                         />
-                       </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Message</label>
+                          <textarea
+                            rows="4"
+                            value={advisorFormData.message}
+                            onChange={(e) => setAdvisorFormData({ ...advisorFormData, message: e.target.value })}
+                            className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all resize-none"
+                            placeholder="Message from the advisor..."
+                          />
+                        </div>
 
                   <div className="flex justify-end gap-3 pt-4 shrink-0">
                        <button
@@ -5613,70 +5854,115 @@ export default function SatesoftApp() {
                   </button>
                 </div>
 
-                {viewMilestone ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => { setViewMilestone(null); setMilestoneActivities([]); }}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                        Back to Milestones
-                      </button>
-                      <h2 className="text-lg font-semibold text-slate-900">{viewMilestone.year} - {viewMilestone.title}</h2>
-                      {viewMilestone.icon && (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
-                          <i className={viewMilestone.icon} style={{ color: viewMilestone.color || '#72bf24' }}></i>
-                          {viewMilestone.icon}
-                        </span>
-                      )}
-                    </div>
+                 {viewMilestone ? (
+                   <div className="space-y-4">
+                     <div className="flex items-center gap-3">
+                       <button
+                         onClick={() => { setViewMilestone(null); setMilestoneActivities([]); }}
+                         className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
+                       >
+                         <ChevronLeft className="w-4 h-4" />
+                         Back to Milestones
+                       </button>
+                       <h2 className="text-lg font-semibold text-slate-900">{viewMilestone.year} - {viewMilestone.title}</h2>
+                       {viewMilestone.icon && (
+                         <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                           <i className={viewMilestone.icon} style={{ color: viewMilestone.color || '#72bf24' }}></i>
+                           {viewMilestone.icon}
+                         </span>
+                       )}
+                     </div>
 
-                    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-                      <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                        <div>
-                          <h3 className="text-base font-semibold text-slate-900">Monthly Activities</h3>
-                          <p className="text-xs text-slate-500 mt-1">Add month cards that will appear on the public Journey page</p>
-                        </div>
-                        <button
-                          onClick={handleOpenAddActivity}
-                          className="bg-[#72bf24] hover:bg-[#62a71e] text-white font-semibold px-4 py-2 rounded-xl flex items-center gap-2 text-sm shadow-sm transition-all"
-                        >
-                          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                          Add Month
-                        </button>
-                      </div>
-                      <div className="p-6">
-                        {milestoneActivities.length > 0 ? (
-                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                             {milestoneActivities.map((activity) => (
-                               <div key={activity.id} onClick={() => handleViewActivity(activity)} className="bg-white rounded-xl border border-slate-200 p-4 hover:border-[#72bf24] transition-all duration-300 cursor-pointer">
-                                 <div className="flex items-center justify-between mb-2">
-                                   <span className="text-xs font-semibold text-[#72bf24] uppercase tracking-wider">{activity.month}</span>
-                                   <div className="flex items-center gap-1">
-                                     <button
-                                       onClick={(e) => { e.stopPropagation(); setSelectedActivity(activity); setActivityModalMode('edit'); setActivityFormData({ month: activity.month, title: activity.title, description: activity.description || '', displayOrder: activity.displayOrder || 0 }); setIsActivityModalOpen(true); }}
-                                       className="p-1.5 hover:bg-blue-50 rounded-lg transition-all text-slate-400 hover:text-blue-600"
-                                     >
-                                       <Pencil className="w-3.5 h-3.5" />
-                                     </button>
-                                     <button
-                                       onClick={(e) => { e.stopPropagation(); if (window.confirm('Delete this month?')) { handleDeleteActivity(activity.id); } }}
-                                       className="p-1.5 hover:bg-red-50 rounded-lg transition-all text-slate-400 hover:text-red-600"
-                                     >
-                                       <Trash2 className="w-3.5 h-3.5" />
-                                     </button>
-                                   </div>
-                                 </div>
-                                 <h4 className="text-sm font-semibold text-slate-900 mb-1">{activity.title}</h4>
-                                 <p className="text-xs text-slate-600 line-clamp-3">{activity.description || 'No description'}</p>
-                               </div>
-                             ))}
+                     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                       <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                         <div>
+                           <h3 className="text-base font-semibold text-slate-900">Months</h3>
+                           <p className="text-xs text-slate-500 mt-1">These month cards appear on the public Journey page</p>
+                         </div>
+                         <button
+                           onClick={handleOpenAddActivity}
+                           className="bg-[#72bf24] hover:bg-[#62a71e] text-white font-semibold px-4 py-2 rounded-xl flex items-center gap-2 text-sm shadow-sm transition-all"
+                         >
+                           <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                           Add Month
+                         </button>
+                       </div>
+                       <div className="p-6">
+                         {milestoneActivities.length > 0 ? (
+                           <div className="space-y-3">
+                              {milestoneActivities.map((activity) => {
+                                const activityDates = dateActivities.filter(da => da.month === activity.month);
+                                const isCalendarOpen = openMonthCalendar === activity.month;
+                                return (
+                                  <div key={activity.id} className="border border-slate-200 rounded-xl overflow-hidden">
+                                    <div className="p-4 bg-slate-50/50 flex items-center justify-between">
+                                      <div>
+                                        <h4 className="text-sm font-semibold text-slate-900">{activity.month}</h4>
+                                        <p className="text-xs text-slate-500">{activity.title}</p>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => setOpenMonthCalendar(isCalendarOpen ? null : activity.month)}
+                                          className="text-xs text-[#72bf24] font-semibold hover:underline flex items-center gap-1"
+                                        >
+                                          <Calendar className="w-3 h-3" />
+                                          {isCalendarOpen ? 'Hide Calendar' : 'Calendar'}
+                                        </button>
+                                        <button
+                                          onClick={() => { setSelectedActivity(activity); setActivityModalMode('edit'); setActivityFormData({ month: activity.month, title: activity.title, description: activity.description || '', displayOrder: activity.displayOrder || 0 }); setIsActivityModalOpen(true); }}
+                                          className="p-1.5 hover:bg-blue-50 rounded-lg transition-all text-slate-400 hover:text-blue-600"
+                                        >
+                                          <Pencil className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          onClick={() => { if (window.confirm('Delete this month?')) { handleDeleteActivity(activity.id); } }}
+                                          className="p-1.5 hover:bg-red-50 rounded-lg transition-all text-slate-400 hover:text-red-600"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {isCalendarOpen && (
+                                      <div className="p-4 bg-white border-t border-slate-100">
+                                        <div className="flex items-center justify-between mb-3">
+                                          <h5 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Select a date to add activity</h5>
+                                          <button
+                                            onClick={() => handleOpenAddDateActivity()}
+                                            className="text-xs text-[#72bf24] font-semibold hover:underline flex items-center gap-1"
+                                          >
+                                            <Plus className="w-3 h-3" />
+                                            Add Date Activity
+                                          </button>
+                                        </div>
+                                        <div className="grid grid-cols-7 gap-2">
+                                          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+                                            <div key={day} className="h-8 flex items-center justify-center text-xs font-semibold text-slate-400 uppercase">
+                                              {day}
+                                            </div>
+                                          ))}
+                                          {renderMonthCalendar(activity.month, Number(viewMilestone.year))}
+                                        </div>
+                                        <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
+                                          <div className="flex items-center gap-2">
+                                            <span className="w-3 h-3 bg-[#72bf24] rounded"></span>
+                                            <span>Has activity</span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <span className="w-3 h-3 bg-gray-100 rounded border border-gray-200"></span>
+                                            <span>No activity</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
                            </div>
-                        ) : (
+                         ) : (
                            <div className="text-center py-12">
                              <CalendarIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                             <p className="text-sm text-slate-500">No monthly activities yet for this milestone.</p>
+                             <p className="text-sm text-slate-500">No months yet for this milestone.</p>
                              <button
                                onClick={handleOpenAddActivity}
                                className="mt-3 text-[#72bf24] text-sm font-semibold hover:underline"
@@ -5685,11 +5971,70 @@ export default function SatesoftApp() {
                              </button>
                            </div>
                          )}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                       </div>
+                     </div>
+
+                     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                       <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                         <div>
+                           <h3 className="text-base font-semibold text-slate-900">Date Activities</h3>
+                           <p className="text-xs text-slate-500 mt-1">These dates appear as green clickable dates in the public calendar</p>
+                         </div>
+                         <button
+                           onClick={handleOpenAddDateActivity}
+                           className="bg-[#72bf24] hover:bg-[#62a71e] text-white font-semibold px-4 py-2 rounded-xl flex items-center gap-2 text-sm shadow-sm transition-all"
+                         >
+                           <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                           Add Date Activity
+                         </button>
+                       </div>
+                       <div className="p-6">
+                         {dateActivities.length > 0 ? (
+                           <div className="space-y-3">
+                             {dateActivities.map((activity) => (
+                               <div key={activity.id} className="border border-slate-200 rounded-xl p-4">
+                                 <div className="flex items-center justify-between">
+                                   <div>
+                                     <div className="text-sm font-semibold text-slate-900">
+                                       {new Date(activity.activityDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                     </div>
+                                     <div className="text-xs text-slate-500">{activity.month} - {activity.title}</div>
+                                     <div className="text-xs text-slate-600 mt-1 line-clamp-2">{activity.description || 'No description'}</div>
+                                   </div>
+                                   <div className="flex items-center gap-1">
+                                     <button
+                                       onClick={() => { setSelectedDateActivity(activity); setDateActivityMode('edit'); setDateActivityFormData({ activityDate: activity.activityDate, title: activity.title, description: activity.description || '', displayOrder: activity.displayOrder || 0, blogSlug: activity.blogSlug || '' }); setIsDateActivityModalOpen(true); }}
+                                       className="p-1.5 hover:bg-blue-50 rounded-lg transition-all text-slate-400 hover:text-blue-600"
+                                     >
+                                       <Pencil className="w-3.5 h-3.5" />
+                                     </button>
+                                     <button
+                                       onClick={() => { if (window.confirm('Delete this date activity?')) { handleDeleteDateActivity(activity.id); } }}
+                                       className="p-1.5 hover:bg-red-50 rounded-lg transition-all text-slate-400 hover:text-red-600"
+                                     >
+                                       <Trash2 className="w-3.5 h-3.5" />
+                                     </button>
+                                   </div>
+                                 </div>
+                               </div>
+                             ))}
+                           </div>
+                         ) : (
+                           <div className="text-center py-12">
+                             <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                             <p className="text-sm text-slate-500">No date activities yet for this milestone.</p>
+                             <button
+                               onClick={handleOpenAddDateActivity}
+                               className="mt-3 text-[#72bf24] text-sm font-semibold hover:underline"
+                             >
+                               Add your first date activity
+                             </button>
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                   </div>
+                 ) : (
                     <table className="w-full text-left border-collapse">
                       <thead className="bg-[#f8fafc]">
                         <tr className="border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -5765,9 +6110,8 @@ export default function SatesoftApp() {
                           </tr>
                         )}
                       </tbody>
-                    </table>
-                  </div>
-                )}
+                     </table>
+                 )}
               </div>
             )}
 
@@ -6209,15 +6553,22 @@ export default function SatesoftApp() {
         {isOpportunityModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-100 flex flex-col max-h-[90vh] transition-all duration-300 hover:shadow-2xl">
-              <div className="flex items-center justify-between mb-5 shrink-0">
-                <h3 className="text-base font-semibold text-slate-900">
-                  {opportunityModalMode === 'add' ? 'Add New Opportunity' : 'Edit Opportunity'}
-                </h3>
-                <button onClick={() => setIsOpportunityModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <form onSubmit={handleSaveOpportunity} className="space-y-4 overflow-y-auto flex-1 pr-2">
+               <div className="flex items-center justify-between mb-5 shrink-0">
+                 <h3 className="text-base font-semibold text-slate-900">
+                   {opportunityModalMode === 'add' ? 'Add New Opportunity' : 'Edit Opportunity'}
+                 </h3>
+                 <button onClick={() => setIsOpportunityModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90">
+                   <X className="w-5 h-5" />
+                 </button>
+               </div>
+
+               {opportunityError && (
+                 <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl animate-shake">
+                   {opportunityError}
+                 </div>
+               )}
+
+               <form onSubmit={handleSaveOpportunity} className="space-y-4 overflow-y-auto flex-1 pr-2">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Job Title</label>
                   <input
@@ -6329,9 +6680,13 @@ export default function SatesoftApp() {
                   >
                     Cancel
                   </button>
-                  <button type="submit" className="px-4 py-2 text-xs font-semibold text-white bg-[#72bf24] hover:bg-[#62a71e] rounded-xl transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
-                    {opportunityModalMode === 'add' ? 'Add Opportunity' : 'Update Opportunity'}
-                  </button>
+                   <button type="submit" disabled={opportunitySaving} className={`px-4 py-2 text-xs font-semibold text-white rounded-xl transition-all duration-300 ${
+                     opportunitySaving
+                       ? "bg-slate-400 cursor-not-allowed"
+                       : "bg-[#72bf24] hover:bg-[#62a71e] hover:shadow-md hover:-translate-y-0.5"
+                   }`}>
+                     <span>{opportunitySaving ? 'Saving...' : (opportunityModalMode === 'add' ? 'Add Opportunity' : 'Update Opportunity')}</span>
+                   </button>
                 </div>
               </form>
             </div>
@@ -6502,13 +6857,25 @@ export default function SatesoftApp() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Icon</label>
-                    <select
-                      value={milestoneFormData.icon}
-                      onChange={(e) => setMilestoneFormData({ ...milestoneFormData, icon: e.target.value })}
-                      className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all bg-white"
-                    >
+                   <div>
+                     <label className="block text-xs font-semibold text-slate-700 mb-1">Blog Post ID</label>
+                     <input
+                       type="text"
+                       value={milestoneFormData.blogSlug}
+                       onChange={(e) => setMilestoneFormData({ ...milestoneFormData, blogSlug: e.target.value })}
+                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
+                       placeholder="e.g. 5"
+                     />
+                     <p className="text-[10px] text-slate-400 mt-1">Enter the blog post ID to link this milestone to a blog article</p>
+                   </div>
+
+                   <div>
+                     <label className="block text-xs font-semibold text-slate-700 mb-1">Icon</label>
+                     <select
+                       value={milestoneFormData.icon}
+                       onChange={(e) => setMilestoneFormData({ ...milestoneFormData, icon: e.target.value })}
+                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all bg-white"
+                     >
                       <option value="">-- Select an icon --</option>
                       <optgroup label="Business & Work">
                         <option value="fa-solid fa-lightbulb">💡 Lightbulb</option>
@@ -6694,11 +7061,91 @@ export default function SatesoftApp() {
                    Close
                  </button>
                </div>
-             </div>
-           </div>
-         )}
+              </div>
+            </div>
+          )}
 
-          {/* ==================== VIEW PARTNER MODAL ==================== */}
+          {/* ==================== DATE ACTIVITY MODAL ==================== */}
+          {isDateActivityModalOpen && (
+            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+              <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-base font-semibold text-slate-900">
+                    {dateActivityMode === 'add' ? 'Add Date Activity' : 'Edit Date Activity'}
+                  </h3>
+                  <button
+                    onClick={() => setIsDateActivityModalOpen(false)}
+                    className="text-slate-400 hover:text-slate-600 p-1 transition-all duration-300 hover:rotate-90"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveDateActivity} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Activity Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={dateActivityFormData.activityDate}
+                      onChange={(e) => setDateActivityFormData({ ...dateActivityFormData, activityDate: e.target.value })}
+                      className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Title</label>
+                    <input
+                      type="text"
+                      required
+                      value={dateActivityFormData.title}
+                      onChange={(e) => setDateActivityFormData({ ...dateActivityFormData, title: e.target.value })}
+                      className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
+                      placeholder="e.g. Product Launch Event"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Description</label>
+                    <textarea
+                      value={dateActivityFormData.description}
+                      onChange={(e) => setDateActivityFormData({ ...dateActivityFormData, description: e.target.value })}
+                      className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all resize-none"
+                      rows="3"
+                      placeholder="Details about this activity..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Blog Post ID</label>
+                    <input
+                      type="text"
+                      value={dateActivityFormData.blogSlug}
+                      onChange={(e) => setDateActivityFormData({ ...dateActivityFormData, blogSlug: e.target.value })}
+                      className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
+                      placeholder="e.g. 5"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">Enter the blog post ID to link this activity to a blog article</p>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setIsDateActivityModalOpen(false)}
+                      className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all duration-300"
+                    >
+                      Cancel
+                    </button>
+                    <button type="submit" className="px-4 py-2 text-xs font-semibold text-white bg-[#72bf24] hover:bg-[#62a71e] rounded-xl transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
+                      {dateActivityMode === 'add' ? 'Add Date Activity' : 'Update Date Activity'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+           {/* ==================== VIEW PARTNER MODAL ==================== */}
         {viewPartner && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">

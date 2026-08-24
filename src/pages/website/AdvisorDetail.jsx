@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { FaArrowLeft, FaUser, FaEnvelope, FaLinkedin, FaTwitter, FaQuoteLeft, FaQuoteRight } from 'react-icons/fa';
+
+const safeImageUrl = (url) => {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('/')) return trimmed;
+  if (trimmed.startsWith('data:')) return trimmed;
+  return '/' + trimmed;
+};
 
 const AdvisorDetail = () => {
   const { id } = useParams();
@@ -55,7 +65,8 @@ const AdvisorDetail = () => {
   }
 
   const fullName = `${advisor.firstName || ''} ${advisor.lastName || ''}`.trim();
-  const roleName = advisor.roleName || 'Advisor';
+  const roleName = advisor.roleTitle || advisor.roleName || 'Advisor';
+  const imageSrc = safeImageUrl(advisor.imageUrl);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -66,12 +77,26 @@ const AdvisorDetail = () => {
         </Link>
 
         <div className="max-w-3xl mx-auto">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-md overflow-hidden">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-[#72bf24]/10 via-[#72bf24]/5 to-white px-6 py-5 border-b border-[#72bf24]/10">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-md overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-[#72bf24]/10 via-[#72bf24]/5 to-white px-6 py-5 border-b border-[#72bf24]/10 flex items-center gap-4">
+            {imageSrc && (
+              <div className="shrink-0 w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md">
+                <img 
+                  src={imageSrc} 
+                  alt={fullName}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+            <div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">{fullName}</h1>
               <p className="text-base text-[#72bf24] font-medium">{roleName}</p>
             </div>
+          </div>
 
             {/* Message Section */}
             <div className="px-6 py-6">

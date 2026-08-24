@@ -157,18 +157,24 @@ const Opportunities = () => {
                     {job.title}
                   </h3>
 
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 font-light mb-4">
-                    {job.location && (
-                      <span className="flex items-center gap-1.5">
-                        <svg className="w-4 h-4 text-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                        {job.location}
-                      </span>
-                    )}
-                    <span className="flex items-center gap-1.5">
-                      <svg className="w-4 h-4 text-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 00-3-3.87"></path><path d="M16 3.13a4 4 0 010 7.75"></path></svg>
-                      {job.applications !== undefined ? `${job.applications} ${job.applications === 1 ? 'position' : 'positions'}` : 'Open position'}
-                    </span>
-                  </div>
+                   <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 font-light mb-4">
+                     {job.location && (
+                       <span className="flex items-center gap-1.5">
+                         <svg className="w-4 h-4 text-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                         {job.location}
+                       </span>
+                     )}
+                     <span className="flex items-center gap-1.5">
+                       <svg className="w-4 h-4 text-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                       {job.applications !== undefined ? `${job.applications} ${job.applications === 1 ? 'position' : 'positions'}` : 'Open position'}
+                     </span>
+                   </div>
+
+                   {job.description && (
+                     <p className="text-sm text-gray-600 font-light mb-4 line-clamp-3">
+                       {job.description}
+                     </p>
+                   )}
 
                   <div className="mt-auto pt-4 border-t border-border">
                     <Link

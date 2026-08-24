@@ -23,7 +23,7 @@ const Logo = ({ className = '', textClassName = 'text-lime-400', showText = true
         className={`${sizeClasses[size]} object-contain`}
       />
       {showText && (
-        <span className={`font-['Inter'] ${textSizeClasses[size]} font-extrabold tracking-wide ${textClassName}`}>
+        <span className={`${textSizeClasses[size]} font-semibold tracking-wide ${textClassName}`}>
           Satesoft
         </span>
       )}

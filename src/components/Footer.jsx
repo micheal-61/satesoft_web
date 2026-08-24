@@ -74,9 +74,6 @@ function Footer() {
       { label: 'Privacy Policy', path: '/privacy-policy' },
       { label: 'Service Agreement', path: '/service-agreement' },
       { label: 'Supports', path: '/support' },
-    ],
-    admin: [
-      { label: 'Admin', path: '/admin/login' },
     ]
   };
 
@@ -125,10 +122,9 @@ function Footer() {
       {/* ============================================================
           MAIN FOOTER - Navigation & Information
           ============================================================ */}
-      <div 
-        className="bg-[#f5f5f5] pt-8 pb-6 text-slate-600" 
-        style={{ fontFamily: "'Segoe UI', sans-serif" }}
-      >
+       <div 
+         className="bg-[#f5f5f5] pt-8 pb-6 text-slate-600" 
+       >
         <div className="container mx-auto px-8 md:px-12 lg:px-20">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 mb-8">
             
@@ -316,15 +312,6 @@ function Footer() {
                 }
                 return null;
               })}
-              {/* Admin Link */}
-              <li>
-                 <Link 
-                  to="/admin/login" 
-                  className="text-[#72bf24] font-normal hover:text-[#62a71e] hover:font-bold transition-colors"
-                >
-                  Admin
-                </Link>
-              </li>
             </ul>
           </div>
         </div>

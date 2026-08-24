@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaRocket, FaCalendar, FaCheckCircle } from 'react-icons/fa';
+import ActivityCalendar from './ActivityCalendar';
 
 const MilestoneDetail = () => {
   const { id } = useParams();
@@ -43,7 +44,7 @@ const MilestoneDetail = () => {
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-[#72bf24] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading milestone...</p>
+           <p className="text-gray-600 font-light">Loading milestone...</p>
         </div>
       </div>
     );
@@ -99,14 +100,14 @@ const MilestoneDetail = () => {
 
           {/* Activities Section */}
           <div className="px-8 py-6 border-t border-gray-100">
-            <h2 className="text-xl font-light text-gray-900 mb-6">Other Activities</h2>
-            {activities.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {activities.map((activity, idx) => (
-                  <div
+            <h2 className="text-xl font-light text-gray-900 mb-6">Monthly Activities</h2>
+            {activities.filter(a => !a.activityDate).length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {activities.filter(a => !a.activityDate).map((activity, idx) => (
+                  <Link
                     key={activity.id || idx}
-                    onClick={() => navigate(`/milestone/${id}/activity/${activity.id}`)}
-                    className="bg-white rounded-xl border border-[#72bf24]/30 shadow-sm hover:shadow-lg hover:border-[#72bf24] transition-all duration-300 overflow-hidden cursor-pointer group border-r-2 border-b-2"
+                    to={`/milestone/${id}/month/${encodeURIComponent(activity.month)}`}
+                    className="block bg-white rounded-xl border border-[#72bf24]/30 shadow-sm hover:shadow-lg hover:border-[#72bf24] transition-all duration-300 overflow-hidden cursor-pointer group border-r-2 border-b-2"
                     style={{ borderRightColor: '#72bf24', borderBottomColor: '#72bf24' }}
                   >
                     <div className="px-4 py-3 border-b border-[#72bf24]/10 bg-gradient-to-r from-[#72bf24]/5 to-transparent">
@@ -119,7 +120,7 @@ const MilestoneDetail = () => {
                     <div className="p-4">
                       <p className="text-xs text-gray-600 leading-relaxed line-clamp-3">{activity.description || 'No description provided.'}</p>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             ) : (

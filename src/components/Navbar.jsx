@@ -7,6 +7,7 @@ export default function Appheader() {
   const [companyOpen, setCompanyOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchExpanded, setSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
   const companyRef = useRef(null);
@@ -574,36 +575,57 @@ export default function Appheader() {
                 {contactLink.label}
               </Link>
 
-              {/* Search */}
-              <div className="relative" ref={searchRef}>
-                <div className={`flex items-center gap-2 rounded-lg border bg-white/90 px-3 py-2 shadow-sm border-[#72bf24] w-72`}>
-                  <i className="bi bi-search text-lg text-gray-600 shrink-0"></i>
-
-                  <input
-                    id="site-search"
-                    type="search"
-                    value={searchQuery}
-                    onChange={(event) => {
-                      setSearchQuery(event.target.value);
-                      setSearchOpen(true);
-                    }}
-                    onFocus={() => setSearchOpen(true)}
-                    placeholder="Search"
-                    className="w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
-                  />
-                  {searchQuery && (
+                {/* Search */}
+                <div className="relative" ref={searchRef}>
+                  {!searchExpanded ? (
                     <button
-                      onClick={() => {
-                        setSearchQuery('');
-                        setSearchOpen(false);
-                      }}
-                      className="text-gray-400 hover:text-gray-600 transition-colors duration-300 shrink-0"
-                      aria-label="Clear search"
+                      onClick={() => setSearchExpanded(true)}
+                      className="p-2 rounded-lg text-gray-600 hover:text-[#72bf24] hover:bg-[#72bf24]/10 transition-all duration-300"
+                      aria-label="Open search"
                     >
-                      <i className="bi bi-x-circle-fill text-lg"></i>
+                      <i className="bi bi-search text-lg"></i>
                     </button>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-lg border bg-white/90 px-3 py-2 shadow-sm border-[#72bf24] w-72">
+                      <i className="bi bi-search text-lg text-gray-600 shrink-0"></i>
+                      <input
+                        id="site-search"
+                        type="text"
+                        value={searchQuery}
+                        onChange={(event) => {
+                          setSearchQuery(event.target.value);
+                          setSearchOpen(true);
+                        }}
+                        onFocus={() => setSearchOpen(true)}
+                        placeholder="Search"
+                        className="w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
+                        autoFocus
+                      />
+                      {searchQuery && (
+                        <button
+                          onClick={() => {
+                            setSearchQuery('');
+                            setSearchOpen(false);
+                          }}
+                          className="shrink-0 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
+                          aria-label="Clear search"
+                        >
+                          <i className="bi bi-x text-xs text-gray-600"></i>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          setSearchExpanded(false);
+                          setSearchQuery('');
+                          setSearchOpen(false);
+                        }}
+                        className="shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+                        aria-label="Close search"
+                      >
+                        <i className="bi bi-x-lg"></i>
+                      </button>
+                    </div>
                   )}
-                </div>
 
                 {searchOpen && searchQuery.trim() && (
                   <div className="absolute right-0 top-full z-[70] mt-3 w-80 overflow-hidden rounded-xl border border-gray-100 bg-white p-3 shadow-2xl">
@@ -707,22 +729,10 @@ export default function Appheader() {
                     placeholder="Search"
                     className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
                   />
-                  {searchQuery && (
-                    <button
-                      onClick={() => {
-                        setSearchQuery('');
-                        setSearchOpen(false);
-                      }}
-                      className="text-gray-400 hover:text-gray-600 transition-colors duration-300"
-                      aria-label="Clear search"
-                    >
-                      <i className="bi bi-x-circle-fill"></i>
-                    </button>
-                  )}
-                 </div>
-               </div>
+                </div>
+              </div>
 
-               {/* Company Links in Mobile */}
+                {/* Company Links in Mobile */}
               <div className="mt-1 pt-2 border-t border-gray-100">
                 <p className="text-xs font-normal text-gray-400 uppercase tracking-wider px-4 py-1">
                   Company
