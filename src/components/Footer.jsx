@@ -74,6 +74,9 @@ function Footer() {
       { label: 'Privacy Policy', path: '/privacy-policy' },
       { label: 'Service Agreement', path: '/service-agreement' },
       { label: 'Supports', path: '/support' },
+    ],
+    admin: [
+      { label: 'Admin', path: '/admin/login' },
     ]
   };
 
@@ -312,6 +315,16 @@ function Footer() {
                 }
                 return null;
               })}
+              {navigationLinks.admin?.map((link) => (
+                <li key={link.path}>
+                  <Link 
+                    to={link.path} 
+                    className="text-[#72bf24] font-normal hover:text-[#62a71e] hover:font-bold transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
