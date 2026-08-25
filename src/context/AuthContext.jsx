@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext(null);
@@ -11,6 +11,14 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('cms_auth_token') || null);
   const [loading, setLoading] = useState(true);
 
+  const logout = useCallback(() => {
+    localStorage.removeItem('cms_auth_token');
+    localStorage.removeItem('cms_auth_user');
+    delete axios.defaults.headers.common['Authorization'];
+    setToken(null);
+    setUser(null);
+  }, []);
+
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -20,6 +28,21 @@ export const AuthProvider = ({ children }) => {
     }
     setLoading(false);
   }, [token]);
+
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 403) {
+          logout();
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
+  }, [logout]);
 
   const login = async (username, password) => {
     try {
@@ -40,12 +63,6 @@ export const AuthProvider = ({ children }) => {
         message: error.response?.data?.error || 'Login failed'
       };
     }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('cms_auth_token');
-    localStorage.removeItem('cms_auth_user');
-    setToken(null);
   };
 
   const forgotPassword = async (email) => {

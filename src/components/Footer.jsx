@@ -68,7 +68,7 @@ function Footer() {
       { label: 'Contact Us', path: '/contact' },
       { label: 'Testimonials', path: '/testimonials' },
       { label: 'Our Partners', path: '/partners' },
-      { label: 'Environmental Sustainability', path: '/environmental' },
+      { label: 'Environmental Sustainability', path: '/sustainability' },
     ],
     legal: [
       { label: 'Privacy Policy', path: '/privacy-policy', condition: privacyPolicy },
@@ -316,6 +316,14 @@ function Footer() {
                 }
                 return null;
               })}
+              <li>
+                <Link 
+                  to="/privacy-policy" 
+                  className="hover:text-[#72bf24] transition-colors font-normal hover:font-bold"
+                >
+                  Privacy Policy
+                </Link>
+              </li>
               {/* Admin Link */}
               <li>
                  <Link 

@@ -30,9 +30,9 @@ import OpportunityDetails from "./pages/website/OpportunityDetails";
 import OpportunityApplication from "./pages/website/OpportunityApplication";
 import Partners from "./pages/website/Partners";
 import BlogDetails from "./pages/website/BlogDetails";
-import Environmental from "./pages/website/Environmental";
-import PrivacyPolicy from "./pages/website/PrivacyPolicy";
-import ServiceAgreement from "./pages/website/ServiceAgreement";
+import Sustainability from "./pages/Sustainability";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import ServiceAgreement from "./pages/ServiceAgreement";
 import Support from "./pages/website/Support";
 
 // --- Admin CMS ---
@@ -115,7 +115,7 @@ export const routesConfig = [
       { path: "products/founddocument", element: <ProductDetailsFoundDocument /> },
       { path: "products/:id", element: <ProductDetails /> },
       { path: "blog/:id", element: <BlogDetails /> },
-      { path: "environmental", element: <Environmental /> },
+      { path: "sustainability", element: <Sustainability /> },
       { path: "privacy-policy", element: <PrivacyPolicy /> },
       { path: "service-agreement", element: <ServiceAgreement /> },
       { path: "support", element: <Support /> },
