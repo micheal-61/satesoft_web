@@ -78,6 +78,9 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../../components/Logo';
+import AdminServiceAgreement from './AdminServiceAgreement';
+import AdminSustainability from './AdminSustainability';
+import PrivacyPolicyManager from '../../components/admin/PrivacyPolicyManager';
 
 const API_URL = 'http://localhost:3001/api';
 
@@ -2313,105 +2316,19 @@ export default function SatesoftApp() {
       'agreement-history': { title: 'Agreement History', icon: BookOpen },
       'jurisdictions': { title: 'Jurisdictions', icon: Globe },
       'contact-info': { title: 'Contact Information', icon: MailIcon },
-      'privacy-policy': { title: 'Privacy Policy', icon: Shield }
+      'privacy-policy': { title: 'Privacy Policy', icon: Shield },
+      'sustainability': { title: 'Sustainability', icon: Sparkles }
     };
 
     const currentTab = activeTab.split('-').slice(1).join('-') || 'service-agreement';
     const meta = tabMap[currentTab] || tabMap['service-agreement'];
 
     if (currentTab === 'service-agreement') {
-      return (
-        <div className="h-[calc(100vh-140px)] flex flex-col">
-          <div className="flex items-center justify-between mb-4 shrink-0">
-            <div>
-              <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Service Agreement</h1>
-              <p className="text-sm text-slate-500 mt-1">Manage service agreement sections and content</p>
-            </div>
-            <button
-              onClick={handleOpenAddAgreement}
-              className="bg-[#72bf24] hover:bg-[#62a71e] text-white font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>Add Section</span>
-            </button>
-          </div>
+      return <AdminServiceAgreement />;
+    }
 
-          <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar">
-            {serviceAgreements.length > 0 ? (
-              serviceAgreements.map((agreement) => (
-                <div key={agreement.id} className="bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
-                  <div className="flex items-center justify-between p-5">
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-[#f0f9e8] border border-[#d3f0b4] flex items-center justify-center shrink-0">
-                        <FileSignature className="w-5 h-5 text-[#72bf24]" />
-                      </div>
-                      <button
-                        onClick={() => handleViewAgreement(agreement)}
-                        className="flex-1 min-w-0 text-left cursor-pointer group"
-                        title="View full agreement"
-                      >
-                        <h3 className="text-sm font-semibold text-slate-900 group-hover:text-[#72bf24] transition-colors truncate">{agreement.title}</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {new Date(agreement.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                        </p>
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        onClick={() => handleViewAgreement(agreement)}
-                        className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-300 text-slate-400 hover:text-blue-600"
-                        title="View"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleOpenEditAgreement(agreement)}
-                        className="p-2 hover:bg-green-50 rounded-lg transition-all duration-300 text-slate-400 hover:text-[#72bf24]"
-                        title="Edit"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteAgreement(agreement.id)}
-                        className="p-2 hover:bg-red-50 rounded-lg transition-all duration-300 text-slate-400 hover:text-red-600"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  {agreement.content && (
-                    <div className="px-5 pb-5 pl-[74px]">
-                      <div className="bg-[#f8fafc] rounded-xl p-4 border border-slate-100">
-                        <div className="text-sm text-slate-700 leading-relaxed line-clamp-3" dangerouslySetInnerHTML={{ __html: renderMarkdown(agreement.content) }}></div>
-                        <button
-                          onClick={() => handleViewAgreement(agreement)}
-                          className="text-[#72bf24] text-xs font-semibold mt-2 hover:underline transition-colors"
-                        >
-                          Read more...
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              <div className="py-16 text-center">
-                <div className="flex flex-col items-center gap-3">
-                  <FileSignature className="w-12 h-12 text-slate-300" />
-                  <span className="text-sm text-slate-400">No service agreement sections found.</span>
-                  <button
-                    onClick={handleOpenAddAgreement}
-                    className="text-[#72bf24] text-sm font-semibold hover:underline transition-colors"
-                  >
-                    Add your first section
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      );
+    if (currentTab === 'sustainability') {
+      return <AdminSustainability />;
     }
 
     if (currentTab === 'jurisdictions') {
@@ -2618,102 +2535,7 @@ export default function SatesoftApp() {
     }
 
     if (currentTab === 'privacy-policy') {
-      return (
-        <div className="h-[calc(100vh-140px)] flex flex-col">
-          <div className="flex items-center justify-between mb-4 shrink-0">
-            <div>
-              <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Privacy Policy</h1>
-              <p className="text-sm text-slate-500 mt-1">Manage privacy policy content</p>
-            </div>
-            <button
-              onClick={handleOpenAddPrivacyPolicy}
-              className="bg-[#72bf24] hover:bg-[#62a71e] text-white font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>Add Policy</span>
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-[#f8fafc]">
-                  <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500 tracking-wider">
-                    <th className="py-4 pl-6">TITLE</th>
-                    <th className="py-4">CREATED</th>
-                    <th className="py-4 pr-6 text-right">ACTIONS</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {privacyPolicies.length > 0 ? (
-                    privacyPolicies.map((policy) => (
-                      <tr key={policy.id} className="hover:bg-slate-50/70 transition-colors duration-150">
-                        <td className="py-5 pl-6">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-[#f0f9e8] border border-[#d3f0b4] flex items-center justify-center shrink-0">
-                              <Shield className="w-5 h-5 text-[#72bf24]" />
-                            </div>
-                            <button
-                              onClick={() => handleViewPrivacyPolicy(policy)}
-                              className="font-semibold text-slate-900 text-base text-left hover:text-[#72bf24] transition-colors cursor-pointer"
-                              title="View privacy policy"
-                            >
-                              {policy.title}
-                            </button>
-                          </div>
-                        </td>
-                        <td className="py-5 text-sm text-slate-600">
-                          {new Date(policy.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                        </td>
-                        <td className="py-5 pr-6">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => handleViewPrivacyPolicy(policy)}
-                              className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-300 text-slate-400 hover:text-blue-600"
-                              title="View"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleOpenEditPrivacyPolicy(policy)}
-                              className="p-2 hover:bg-green-50 rounded-lg transition-all duration-300 text-slate-400 hover:text-[#72bf24]"
-                              title="Edit"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeletePrivacyPolicy(policy.id)}
-                              className="p-2 hover:bg-red-50 rounded-lg transition-all duration-300 text-slate-400 hover:text-red-600"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={3} className="py-16 text-center">
-                        <div className="flex flex-col items-center gap-3">
-                          <Shield className="w-12 h-12 text-slate-300" />
-                          <span className="text-sm text-slate-400">No privacy policies found.</span>
-                          <button
-                            onClick={handleOpenAddPrivacyPolicy}
-                            className="text-[#72bf24] text-sm font-semibold hover:underline transition-colors"
-                          >
-                            Add your first privacy policy
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      );
+      return <PrivacyPolicyManager />;
     }
 
     const data = legalData[currentTab] || legalData['agreement-history'];
@@ -3534,6 +3356,14 @@ export default function SatesoftApp() {
                     }`}
                   >
                     Privacy Policy
+                  </span>
+                  <span
+                    onClick={() => setActiveTab('legal-sustainability')}
+                    className={`cursor-pointer transition-colors duration-300 ${
+                      activeTab === 'legal-sustainability' ? 'text-[#72bf24] font-bold' : 'text-slate-500 hover:text-[#72bf24]'
+                    }`}
+                  >
+                    Sustainability
                   </span>
                 </div>
               )}
