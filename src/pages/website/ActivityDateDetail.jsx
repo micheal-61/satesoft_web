@@ -100,49 +100,58 @@ const ActivityDateDetail = () => {
             </p>
           </div>
 
-          <div className="p-8">
-            {activities.length > 0 ? (
-              <div className="space-y-4">
-                {activities.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="bg-white rounded-xl border border-[#72bf24]/30 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border-r-2 border-b-2"
-                    style={{ borderRightColor: '#72bf24', borderBottomColor: '#72bf24' }}
-                  >
-                    <div className="px-6 py-4 border-b border-[#72bf24]/10 bg-gradient-to-r from-[#72bf24]/5 to-transparent">
-                      <div className="flex items-center gap-2">
-                        <FaCheckCircle className="text-[#72bf24]" />
-                        <span className="text-sm font-semibold text-[#72bf24] uppercase tracking-wider">{activity.month}</span>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mt-1">{activity.title}</h3>
-                    </div>
-                    <div className="p-6">
-                      <p className="text-gray-700 leading-relaxed whitespace-pre-line mb-4">
-                        {activity.description || 'No description provided.'}
-                      </p>
-                       {activity.blogSlug && (
-                         <Link
-                           to={`/blog/${activity.blogSlug}`}
-                           className="inline-flex items-center gap-2 px-4 py-2 bg-[#72bf24]/10 text-[#72bf24] rounded-full text-sm font-medium hover:bg-[#72bf24] hover:text-white transition-all duration-300"
-                         >
-                           <FaExternalLinkAlt className="text-xs" />
-                           Read Blog Post
-                         </Link>
-                       )}
-                       {milestone.blogSlug && activity.blogSlug !== milestone.blogSlug && (
-                         <Link
-                           to={`/blog/${milestone.blogSlug}`}
-                           className="inline-flex items-center gap-2 px-4 py-2 bg-[#72bf24]/10 text-[#72bf24] rounded-full text-sm font-medium hover:bg-[#72bf24] hover:text-white transition-all duration-300 ml-2"
-                         >
-                           <FaExternalLinkAlt className="text-xs" />
-                           Read Related Milestone Blog
-                         </Link>
-                       )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
+           <div className="p-8">
+             {activities.length > 0 ? (
+               <div className="space-y-4">
+                 {activities.map((activity) => (
+                   <div
+                     key={activity.id}
+                     className="bg-white rounded-xl border border-[#72bf24]/30 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border-r-2 border-b-2"
+                     style={{ borderRightColor: '#72bf24', borderBottomColor: '#72bf24' }}
+                   >
+                     <div className="px-6 py-4 border-b border-[#72bf24]/10 bg-gradient-to-r from-[#72bf24]/5 to-transparent">
+                       <div className="flex items-center gap-2">
+                         <FaCheckCircle className="text-[#72bf24]" />
+                         <span className="text-sm font-semibold text-[#72bf24] uppercase tracking-wider">{activity.month}</span>
+                       </div>
+                       <h3 className="text-lg font-semibold text-gray-900 mt-1">{activity.title}</h3>
+                     </div>
+                     <div className="p-6">
+                       <p className="text-gray-700 leading-relaxed whitespace-pre-line mb-4">
+                         {activity.description || 'No description provided.'}
+                       </p>
+                        {activity.blogSlug && (
+                          <Link
+                            to={`/blog/${activity.blogSlug}`}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#72bf24]/10 text-[#72bf24] rounded-full text-sm font-medium hover:bg-[#72bf24] hover:text-white transition-all duration-300"
+                          >
+                            <FaExternalLinkAlt className="text-xs" />
+                            Read Activity Blog Post
+                          </Link>
+                        )}
+                        {milestone.blogSlug && activity.blogSlug !== milestone.blogSlug && (
+                          <Link
+                            to={`/blog/${milestone.blogSlug}`}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#72bf24]/10 text-[#72bf24] rounded-full text-sm font-medium hover:bg-[#72bf24] hover:text-white transition-all duration-300 ml-2"
+                          >
+                            <FaExternalLinkAlt className="text-xs" />
+                            Read Milestone Blog Post
+                          </Link>
+                        )}
+                        {!activity.blogSlug && milestone.blogSlug && (
+                          <Link
+                            to={`/blog/${milestone.blogSlug}`}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#72bf24]/10 text-[#72bf24] rounded-full text-sm font-medium hover:bg-[#72bf24] hover:text-white transition-all duration-300 ml-2"
+                          >
+                            <FaExternalLinkAlt className="text-xs" />
+                            Read Month Blog Post
+                          </Link>
+                        )}
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             ) : (
               <div className="text-center py-12">
                 <FaCalendarAlt className="text-5xl text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500">No activities recorded for this date.</p>

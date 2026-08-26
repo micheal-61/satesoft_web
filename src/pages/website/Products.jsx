@@ -16,9 +16,6 @@ const Products = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [projectDetails, setProjectDetails] = useState(null);
-  const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -89,16 +86,15 @@ const Products = () => {
 
   return (
     <>
-      {/* Products Section */}
-      <section className="py-20 md:py-28 bg-gradient-to-b from-gray-50 to-white">
+      <section className="py-12 md:py-16 bg-gradient-to-b from-gray-50 to-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-end mb-12 md:mb-16 gap-6">
+          <div className="flex flex-col md:flex-row justify-between items-end mb-8 md:mb-10 gap-4">
             <div className="w-full md:w-1/2">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#72bf24]/10 border border-[#72bf24]/20 rounded-full text-[#72bf24] text-sm font-medium mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#72bf24]/10 border border-[#72bf24]/20 rounded-full text-[#72bf24] text-xs font-medium mb-3">
                 Portfolio
               </div>
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-light text-gray-900 leading-tight">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-light text-gray-900 leading-tight">
                 Explore Our Recent <span className="font-semibold text-[#72bf24]">Projects.</span>
               </h1>
             </div>
@@ -106,11 +102,11 @@ const Products = () => {
 
           {/* Products Grid */}
           {projects.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
               {projects.map((project) => (
                 <div 
                   key={project.id} 
-                  className="group bg-white rounded-2xl border border-gray-100 shadow-md hover:shadow-2xl transition-all duration-500 overflow-hidden hover:-translate-y-2"
+                  className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden hover:-translate-y-1"
                 >
                   <div className="relative overflow-hidden aspect-[16/10] bg-gray-100">
                     <div className="absolute inset-0 bg-gradient-to-t from-gray-900/20 via-transparent to-transparent z-10 group-hover:opacity-0 transition-opacity duration-500"></div>
@@ -122,21 +118,36 @@ const Products = () => {
                       className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
                     />
                     {/* Category Badge */}
-                    <div className="absolute top-4 left-4 z-20 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-[#72bf24] border border-[#72bf24]/20 shadow-sm">
+                    <div className="absolute top-3 left-3 z-20 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full text-[11px] font-semibold text-[#72bf24] border border-[#72bf24]/20 shadow-sm">
                       {project.category || "Product"}
                     </div>
                   </div>
                   
-                  <div className="p-6">
-                    <h3 className="text-xl font-semibold text-gray-900 mb-1">
+                  <div className="p-4">
+                    <h3 className="text-base font-semibold text-gray-900 mb-1">
                       {project.name || project.title}
                     </h3>
-                    <p className="text-sm text-gray-500 font-light mb-4 line-clamp-2">
-                      {project.tagline || project.description || "Innovative solution for modern businesses."}
+                    <p className="text-xs text-gray-500 font-light mb-2 line-clamp-1">
+                      {project.tagline || project.subtitle || ''}
                     </p>
+                    <p className="text-xs text-gray-600 font-light mb-3 line-clamp-2">
+                      {project.description || 'Innovative solution for modern businesses.'}
+                    </p>
+                    {project.keyFeatures && project.keyFeatures.length > 0 && (
+                      <ul className="space-y-1 mb-3">
+                        {project.keyFeatures.slice(0, 3).map((feature, idx) => (
+                          <li key={idx} className="flex items-start gap-1.5 text-[11px] text-gray-600 font-light">
+                            <svg className="w-3 h-3 text-[#72bf24] mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                     <Link
                       to={`/products/${project.id}`}
-                      className="block w-full rounded-xl bg-[#72bf24] py-3 text-center text-sm font-semibold uppercase tracking-wider text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#62a71e] hover:shadow-lg"
+                      className="block w-full rounded-lg bg-[#72bf24] py-2 text-center text-xs font-semibold uppercase tracking-wider text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#62a71e] hover:shadow-md"
                     >
                       Learn More
                     </Link>
@@ -145,126 +156,14 @@ const Products = () => {
               ))}
             </div>
           ) : (
-            <div className="rounded-3xl border-2 border-dashed border-gray-200 bg-white/70 p-16 text-center">
-              <div className="text-5xl mb-4">📦</div>
-              <h3 className="text-xl font-medium text-gray-700 mb-2">No products available</h3>
-              <p className="text-gray-400 font-light">Please check back later for our latest offerings.</p>
+            <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white/70 p-10 text-center">
+              <div className="text-4xl mb-3">📦</div>
+              <h3 className="text-lg font-medium text-gray-700 mb-1">No products available</h3>
+              <p className="text-gray-400 font-light text-sm">Please check back later for our latest offerings.</p>
             </div>
           )}
         </div>
       </section>
-
-      {/* Project Details Modal */}
-      {selectedProject && (
-        <div 
-          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" 
-          onClick={() => setSelectedProject(null)}
-        >
-          <div 
-            className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl transition-all duration-300 hover:shadow-3xl" 
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0">
-              <h3 className="text-lg font-bold text-gray-900">
-                {selectedProject.name || selectedProject.title}
-              </h3>
-              <button 
-                onClick={() => setSelectedProject(null)} 
-                className="p-2 hover:bg-gray-100 rounded-xl transition-all duration-300 hover:rotate-90"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-              {loadingDetails ? (
-                <div className="flex items-center justify-center py-16">
-                  <div className="relative">
-                    <div className="w-12 h-12 border-4 border-gray-200 rounded-full"></div>
-                    <div className="absolute top-0 left-0 w-12 h-12 border-4 border-[#72bf24] border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* Hero Image */}
-                  {(projectDetails?.logo_url || projectDetails?.image_url) && (
-                    <div className="rounded-xl overflow-hidden bg-gray-100">
-                      <img 
-                        src={projectDetails.logo_url || projectDetails.image_url} 
-                        alt={projectDetails.name || projectDetails.title}
-                        className="w-full h-48 object-cover"
-                      />
-                    </div>
-                  )}
-
-                  {/* Category */}
-                  {projectDetails?.category && (
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</label>
-                      <p className="mt-1 text-gray-700 font-light">{projectDetails.category}</p>
-                    </div>
-                  )}
-
-                  {/* Tagline */}
-                  {projectDetails?.tagline && (
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tagline</label>
-                      <p className="mt-1 text-gray-700 font-light">{projectDetails.tagline}</p>
-                    </div>
-                  )}
-
-                  {/* Description */}
-                  {projectDetails?.description && (
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</label>
-                      <p className="mt-2 text-gray-700 font-light leading-relaxed whitespace-pre-line">
-                        {projectDetails.description}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Key Features */}
-                  {projectDetails?.keyFeatures && projectDetails.keyFeatures.length > 0 && (
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Key Features</label>
-                      <ul className="mt-2 space-y-2">
-                        {projectDetails.keyFeatures.map((feature, idx) => (
-                          <li key={idx} className="flex items-start gap-2 text-gray-700 font-light">
-                            <svg className="w-4 h-4 text-[#72bf24] mt-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            <span>{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex justify-end gap-3 p-5 border-t border-gray-100 shrink-0">
-              <button
-                onClick={() => setSelectedProject(null)}
-                className="px-6 py-2.5 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all duration-300"
-              >
-                Close
-              </button>
-              <Link
-                to="/contact"
-                className="px-6 py-2.5 text-sm font-semibold text-white bg-[#72bf24] hover:bg-[#62a71e] rounded-xl transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
-              >
-                Get This Product
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };

@@ -96,6 +96,28 @@ const ActivityDetail = () => {
             <p className="text-gray-700 leading-relaxed whitespace-pre-line text-base">
               {activity.description || 'No detailed description provided for this activity.'}
             </p>
+             {activity.blogSlug && (
+               <div className="mt-4">
+                 <Link
+                   to={`/blog/${activity.blogSlug}`}
+                   className="inline-flex items-center gap-2 px-4 py-2 bg-[#72bf24]/10 text-[#72bf24] rounded-full text-sm font-medium hover:bg-[#72bf24] hover:text-white transition-all duration-300"
+                 >
+                   <FaExternalLinkAlt className="text-xs" />
+                   Read Related Blog Post
+                 </Link>
+               </div>
+             )}
+             {!activity.blogSlug && milestone?.blogSlug && (
+               <div className="mt-4">
+                 <Link
+                   to={`/blog/${milestone.blogSlug}`}
+                   className="inline-flex items-center gap-2 px-4 py-2 bg-[#72bf24]/10 text-[#72bf24] rounded-full text-sm font-medium hover:bg-[#72bf24] hover:text-white transition-all duration-300"
+                 >
+                   <FaExternalLinkAlt className="text-xs" />
+                   Read Milestone Blog Post
+                 </Link>
+               </div>
+             )}
           </div>
 
           <div className="px-8 py-6 bg-gray-50 border-t border-gray-100">

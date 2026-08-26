@@ -41,12 +41,21 @@ const MilestoneMonth = () => {
 
   useEffect(() => {
     if (month) {
-      const date = new Date(month + ' 1, 2000');
+      let year = milestone?.year ? parseInt(milestone.year) : new Date().getFullYear();
+      let cleanMonth = month;
+
+      const yearMatch = cleanMonth.match(/\b(20\d{2}|19\d{2})\b/);
+      if (yearMatch) {
+        year = parseInt(yearMatch[0]);
+        cleanMonth = cleanMonth.replace(yearMatch[0], '').trim();
+      }
+
+      const date = new Date(cleanMonth + ' 1, ' + year);
       if (!isNaN(date.getTime())) {
         setCurrentDate(date);
       }
     }
-  }, [month]);
+  }, [month, milestone]);
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -61,7 +70,8 @@ const MilestoneMonth = () => {
     if (activity.activityDate) {
       const date = new Date(activity.activityDate);
       const activityMonth = monthNames[date.getMonth()];
-      if (activityMonth.toLowerCase() === month?.toLowerCase()) {
+      const urlMonthBase = month ? month.toLowerCase().replace(/\b(20\d{2}|19\d{2})\b/, '').trim() : '';
+      if (activityMonth.toLowerCase() === urlMonthBase) {
         const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         if (!activitiesByDate[key]) {
           activitiesByDate[key] = [];

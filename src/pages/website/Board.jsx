@@ -269,13 +269,13 @@ const Board = () => {
               const fullName = `${advisor.firstName || ''} ${advisor.lastName || ''}`.trim();
               const roleName = getRoleName(advisor.roleId, advisor.roleTitle);
               const roleColor = getRoleColor(advisor.roleId);
-              const messageLabel = `Message from ${advisor.firstName || 'member'}`;
+              const messageLabel = `About ${advisor.firstName || 'member'}`;
               const imageSrc = safeImageUrl(advisor.imageUrl);
               
               return (
                 <div 
                   key={advisor.id} 
-                  className="group relative bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                  className="group relative bg-white rounded-xl border border-[#72bf24]/20 overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
                   style={{ animationDelay: `${index * 0.08}s` }}
                 >
                   {/* Animated gradient border effect */}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { FaArrowLeft, FaRocket, FaCalendar, FaCheckCircle } from 'react-icons/fa';
+import { FaArrowLeft, FaRocket, FaCalendar, FaCheckCircle, FaExternalLinkAlt } from 'react-icons/fa';
 import ActivityCalendar from './ActivityCalendar';
 
 const MilestoneDetail = () => {
@@ -96,6 +96,17 @@ const MilestoneDetail = () => {
             <p className="text-gray-700 leading-relaxed whitespace-pre-line">
               {milestone.description || 'No detailed description provided for this milestone.'}
             </p>
+            {milestone.blogSlug && (
+              <div className="mt-4">
+                <Link
+                  to={`/blog/${milestone.blogSlug}`}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#72bf24]/10 text-[#72bf24] rounded-full text-sm font-medium hover:bg-[#72bf24] hover:text-white transition-all duration-300"
+                >
+                  <FaExternalLinkAlt className="text-xs" />
+                  Read Related Blog Post
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Activities Section */}
@@ -119,6 +130,17 @@ const MilestoneDetail = () => {
                     </div>
                     <div className="p-4">
                       <p className="text-xs text-gray-600 leading-relaxed line-clamp-3">{activity.description || 'No description provided.'}</p>
+                      {(activity.blogSlug || milestone?.blogSlug) && (
+                        <div className="mt-3">
+                          <Link
+                            to={`/blog/${activity.blogSlug || milestone.blogSlug}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#72bf24]/10 text-[#72bf24] rounded-full text-xs font-medium hover:bg-[#72bf24] hover:text-white transition-all duration-300"
+                          >
+                            <FaExternalLinkAlt className="text-[10px]" />
+                            Read Blog Post
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   </Link>
                 ))}

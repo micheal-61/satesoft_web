@@ -88,6 +88,7 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  connectTimeout: 60000,
 });
 
 // Helper function to normalize dates
@@ -105,24 +106,36 @@ const initializeDatabase = async () => {
   const dbPassword = process.env.DB_PASSWORD || '';
   const dbName = process.env.DB_NAME || 'satesoft_db';
 
-   let conn;
-   try {
-     conn = await mysql.createConnection({ host: dbHost, port: dbPort, user: 'root', password: '' });
-     try {
-       await conn.query('REPAIR TABLE mysql.db EXTENDED');
-     } catch (repairErr) {
-       console.error('⚠️ mysql.db repair warning:', repairErr.message);
-     }
-     await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
-     await conn.query(`CREATE USER IF NOT EXISTS '${dbUser}'@'localhost' IDENTIFIED BY '${dbPassword}'`);
-     await conn.query(`GRANT ALL PRIVILEGES ON \`${dbName}\`.* TO '${dbUser}'@'localhost'`);
-     await conn.query('FLUSH PRIVILEGES');
-     console.log(`✅ Database "${dbName}" and user "${dbUser}" ready`);
-   } catch (err) {
-     console.error('❌ DB setup error:', err.message);
-   } finally {
-     if (conn) await conn.end();
-   }
+  const retry = async (fn, retries = 5, delay = 2000) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        return await fn();
+      } catch (err) {
+        if (i === retries - 1) throw err;
+        console.warn(`⚠️ DB connection attempt ${i + 1} failed, retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  };
+
+    let conn;
+    try {
+      conn = await retry(async () => mysql.createConnection({ host: dbHost, port: dbPort, user: dbUser, password: dbPassword }), 5, 2000);
+      try {
+        await conn.query('REPAIR TABLE mysql.db EXTENDED');
+      } catch (repairErr) {
+        console.error('⚠️ mysql.db repair warning:', repairErr.message);
+      }
+      await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+      await conn.query(`CREATE USER IF NOT EXISTS '${dbUser}'@'localhost' IDENTIFIED BY '${dbPassword}'`);
+      await conn.query(`GRANT ALL PRIVILEGES ON \`${dbName}\`.* TO '${dbUser}'@'localhost'`);
+      await conn.query('FLUSH PRIVILEGES');
+      console.log(`✅ Database "${dbName}" and user "${dbUser}" ready`);
+    } catch (err) {
+      console.error('❌ DB setup error:', err.message);
+    } finally {
+      if (conn) await conn.end();
+    }
 
   // Now connect with the app user to create tables
   let connection;
@@ -714,7 +727,7 @@ const initializeDatabase = async () => {
 };
 
 // Call initialization
-initializeDatabase();
+await initializeDatabase();
 
 // Set pool for privacy policy routes
 privacyPolicyRoutes.setPool(pool);
@@ -3521,12 +3534,15 @@ app.use((req, res) => {
 // START SERVER
 // ======================
 
-app.listen(port, () => {
-  console.log(`
+(async () => {
+  await initializeDatabase();
+  app.listen(port, () => {
+    console.log(`
 🚀 Server Running
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🌍 URL: http://localhost:${port}
 📦 Environment: ${process.env.NODE_ENV || 'development'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   `);
-});
+  });
+})();

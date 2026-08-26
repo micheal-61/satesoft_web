@@ -5298,7 +5298,8 @@ export default function SatesoftApp() {
                   <table className="w-full text-left border-collapse">
                     <thead className="bg-[#f8fafc]">
                       <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500 tracking-wider">
-                        <th className="py-4 pl-6 w-[35%]">TITLE</th>
+                        <th className="py-4 pl-6 w-[8%]">ID</th>
+                        <th className="py-4 w-[27%]">TITLE</th>
                         <th className="py-4 w-[15%]">CATEGORY</th>
                         <th className="py-4 w-[15%]">AUTHOR</th>
                         <th className="py-4 w-[15%]">DATE</th>
@@ -5309,7 +5310,8 @@ export default function SatesoftApp() {
                       {filteredNews.length > 0 ? (
                         filteredNews.map((post) => (
                           <tr key={post.id} className="hover:bg-slate-50/70 transition-colors duration-150">
-                            <td className="py-5 pl-6">
+                            <td className="py-5 pl-6 text-sm text-slate-600 font-mono">{post.id}</td>
+                            <td className="py-5">
                               <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-xl bg-[#f0f9e8] border border-[#d3f0b4] flex items-center justify-center shrink-0 transition-all duration-300 hover:scale-110">
                                   <Newspaper className="w-5 h-5 text-[#72bf24]" />
