@@ -513,12 +513,13 @@ export default function SatesoftApp() {
   const [viewPartner, setViewPartner] = useState(null);
   const [partnerFormData, setPartnerFormData] = useState({
     name: '',
-    joined: new Date().toISOString().split('T')[0],
+    joined_date: new Date().toISOString().split('T')[0],
     industry: '',
     location: '',
-    contactName: '',
-    contactEmail: '',
-    status: 'ACTIVE'
+    contact_name: '',
+    contact_email: '',
+    status: 'ACTIVE',
+    description: ''
   });
   const [milestones, setMilestones] = useState([]);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
@@ -896,7 +897,7 @@ export default function SatesoftApp() {
   const handleOpenAddPartner = () => {
     setPartnerModalMode('add');
     setSelectedPartner(null);
-    setPartnerFormData({ name: '', joined: new Date().toISOString().split('T')[0], industry: '', location: '', contactName: '', contactEmail: '', status: 'ACTIVE' });
+    setPartnerFormData({ name: '', joined_date: new Date().toISOString().split('T')[0], industry: '', location: '', contact_name: '', contact_email: '', status: 'ACTIVE', description: '' });
     setIsPartnerModalOpen(true);
   };
 
@@ -905,12 +906,13 @@ export default function SatesoftApp() {
     setSelectedPartner(partner);
     setPartnerFormData({
       name: partner.name,
-      joined: partner.joined || new Date().toISOString().split('T')[0],
+      joined_date: partner.joined || new Date().toISOString().split('T')[0],
       industry: partner.industry,
       location: partner.location,
-      contactName: partner.contactName || '',
-      contactEmail: partner.contactEmail || '',
-      status: partner.status || 'ACTIVE'
+      contact_name: partner.contactName || '',
+      contact_email: partner.contactEmail || '',
+      status: partner.status || 'ACTIVE',
+      description: partner.description || ''
     });
     setIsPartnerModalOpen(true);
   };
@@ -4256,7 +4258,7 @@ export default function SatesoftApp() {
                           <tr key={partner.id} className="hover:bg-slate-50/70 transition-colors duration-150">
                             <td className="py-5 pl-2">
                               <div>
-                                <div className="font-semibold text-slate-900 text-base">{partner.name}</div>
+                                <div className="font-semibold text-slate-900 text-base">{partner.name || 'Unnamed Partner'}</div>
                                 <div className="text-xs text-slate-400 mt-0.5">Joined: {partner.joined}</div>
                               </div>
                             </td>
@@ -6991,7 +6993,7 @@ export default function SatesoftApp() {
                     <Building2 className="w-8 h-8 text-[#72bf24]" />
                   </div>
                   <div>
-                    <div className="text-sm font-semibold text-slate-900">{viewPartner.name}</div>
+                     <div className="text-sm font-semibold text-slate-900">{viewPartner.name || 'Unnamed Partner'}</div>
                     <div className="text-xs text-slate-400">{viewPartner.industry} â€¢ {viewPartner.location}</div>
                   </div>
                 </div>
@@ -7088,8 +7090,8 @@ export default function SatesoftApp() {
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Contact Name</label>
                     <input
                       type="text"
-                      value={partnerFormData.contactName}
-                      onChange={(e) => setPartnerFormData({ ...partnerFormData, contactName: e.target.value })}
+                      value={partnerFormData.contact_name}
+                      onChange={(e) => setPartnerFormData({ ...partnerFormData, contact_name: e.target.value })}
                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
                     />
                   </div>
@@ -7097,11 +7099,20 @@ export default function SatesoftApp() {
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Contact Email</label>
                     <input
                       type="email"
-                      value={partnerFormData.contactEmail}
-                      onChange={(e) => setPartnerFormData({ ...partnerFormData, contactEmail: e.target.value })}
+                      value={partnerFormData.contact_email}
+                      onChange={(e) => setPartnerFormData({ ...partnerFormData, contact_email: e.target.value })}
                       className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Partner Registration Date / Joined Date</label>
+                  <input
+                    type="date"
+                    value={partnerFormData.joined_date || ''}
+                    onChange={(e) => setPartnerFormData({ ...partnerFormData, joined_date: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all bg-white"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Status</label>
@@ -7111,8 +7122,17 @@ export default function SatesoftApp() {
                     className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all"
                   >
                     <option value="ACTIVE">Active</option>
-                    <option value="TERMINATED">Terminated</option>
+                    <option value="INACTIVE">Inactive</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Description</label>
+                  <textarea
+                    value={partnerFormData.description}
+                    onChange={(e) => setPartnerFormData({ ...partnerFormData, description: e.target.value })}
+                    rows={3}
+                    className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-[#72bf24] focus:ring-1 focus:ring-[#72bf24] transition-all resize-none"
+                  />
                 </div>
                 <div className="flex justify-end gap-3 pt-4 shrink-0">
                   <button

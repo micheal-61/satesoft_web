@@ -50,7 +50,6 @@ export default function Appheader() {
     { label: 'Home', path: '/' },
     { label: 'Products', path: '/products' },
     { label: 'Services', path: '/services' },
-    { label: 'Partners', path: '/partners' },
     { label: 'Opportunities', path: '/opportunities' },
     { label: 'Blog', path: '/blog' },
   ];
@@ -509,7 +508,9 @@ export default function Appheader() {
                       location.pathname === '/about' || 
                       location.pathname === '/board' || 
                       location.pathname === '/pricing' || 
-                      location.pathname === '/testimonials'
+                      location.pathname === '/testimonials' ||
+                      location.pathname === '/partners' ||
+                      location.pathname.startsWith('/partners/')
                         ? 'text-[#72bf24] font-bold' 
                         : 'text-gray-600 hover:text-[#72bf24]'
                     }`}
@@ -546,6 +547,16 @@ export default function Appheader() {
                         );
                       })}
                     </div>
+                    <Link
+                      to="/partners"
+                      className={`block px-5 py-2.5 text-sm font-normal transition-all duration-300 border-l-4 ${
+                        location.pathname === '/partners' || location.pathname.startsWith('/partners/')
+                          ? 'border-[#72bf24] text-[#72bf24] bg-[#72bf24]/5'
+                          : 'border-transparent text-gray-600 hover:bg-[#72bf24]/5 hover:text-[#72bf24] hover:border-[#72bf24]'
+                      }`}
+                    >
+                      Partners
+                    </Link>
                   </div>
                 </div>
 
@@ -732,29 +743,40 @@ export default function Appheader() {
                 </div>
               </div>
 
-                {/* Company Links in Mobile */}
-              <div className="mt-1 pt-2 border-t border-gray-100">
-                <p className="text-xs font-normal text-gray-400 uppercase tracking-wider px-4 py-1">
-                  Company
-                </p>
-                {companyLinks.map((link) => {
-                  const isActive = location.pathname === link.path;
-                  return (
-                    <Link
-                      key={link.path}
-                      to={link.path}
-                      onClick={toggleMobile}
-                      className={`relative font-normal text-sm transition-all duration-300 py-2.5 px-4 rounded-lg ${
-                        isActive
-                          ? 'text-[#72bf24] bg-[#72bf24]/5'
-                          : 'text-gray-600 hover:text-[#72bf24] hover:bg-gray-50'
-                      }`}
-                    >
-                      {link.label}
-                    </Link>
-                  );
-                })}
-              </div>
+                 {/* Company Links in Mobile */}
+               <div className="mt-1 pt-2 border-t border-gray-100">
+                 <p className="text-xs font-normal text-gray-400 uppercase tracking-wider px-4 py-1">
+                   Company
+                 </p>
+                 {companyLinks.map((link) => {
+                   const isActive = location.pathname === link.path;
+                   return (
+                     <Link
+                       key={link.path}
+                       to={link.path}
+                       onClick={toggleMobile}
+                       className={`relative font-normal text-sm transition-all duration-300 py-2.5 px-4 rounded-lg ${
+                         isActive
+                           ? 'text-[#72bf24] bg-[#72bf24]/5'
+                           : 'text-gray-600 hover:text-[#72bf24] hover:bg-gray-50'
+                       }`}
+                     >
+                       {link.label}
+                     </Link>
+                   );
+                  })}
+                  <Link
+                    to="/partners"
+                    onClick={toggleMobile}
+                    className={`relative font-normal text-sm transition-all duration-300 py-2.5 px-4 rounded-lg ${
+                      location.pathname === '/partners' || location.pathname.startsWith('/partners/')
+                        ? 'text-[#72bf24] bg-[#72bf24]/5'
+                        : 'text-gray-600 hover:text-[#72bf24] hover:bg-gray-50'
+                    }`}
+                  >
+                    Partners
+                  </Link>
+                </div>
 
               {/* Admin Portal */}
               <Link
