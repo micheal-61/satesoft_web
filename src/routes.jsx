@@ -32,6 +32,7 @@ const OpportunityApplication = lazy(() =>
   import("./pages/website/OpportunityApplication")
 );
 const Partners = lazy(() => import("./pages/website/Partners"));
+const PartnerDetail = lazy(() => import("./pages/website/PartnerDetail"));
 const BlogDetails = lazy(() => import("./pages/website/BlogDetails"));
 
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
@@ -60,6 +61,7 @@ const RaincloudDashboard = lazy(() =>
   import("./pages/admin/RaincloudDashboard")
 );
 const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
+const AdminPartners = lazy(() => import("./admin/AdminPartners"));
 
 const Appheader = lazy(() => import("./components/Navbar"));
 const FooterComponent = lazy(() => import("./components/Footer"));
@@ -103,6 +105,7 @@ const PublicLayout = () => {
       "/board": "Our Team - Satesoft",
       "/opportunities": "Careers - Satesoft",
       "/partners": "Partners - Satesoft",
+      "/partners/:id": "Partner Details - Satesoft",
       "/sustainability": "Sustainability - Satesoft",
       "/privacy-policy": "Privacy Policy - Satesoft",
       "/service-agreement": "Service Agreement - Satesoft",
@@ -208,6 +211,7 @@ export const routesConfig = [
       },
 
       { path: "partners", element: <Partners /> },
+      { path: "partners/:id", element: <PartnerDetail /> },
 
       { path: "products/duqact", element: <ProductDetailsDuqcat /> },
       {
@@ -243,6 +247,14 @@ export const routesConfig = [
   {
     path: "/admin/login",
     element: <AdminLogin />,
+  },
+  {
+    path: "/admin/partners",
+    element: (
+      <RequireAuth>
+        <AdminPartners />
+      </RequireAuth>
+    ),
   },
   {
     path: "/admin/*",

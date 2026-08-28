@@ -248,23 +248,30 @@ const initializeDatabase = async () => {
         CREATE TABLE IF NOT EXISTS partners (
           id INT AUTO_INCREMENT PRIMARY KEY,
           name VARCHAR(255) NOT NULL,
-          joined DATE DEFAULT NULL,
-          industry VARCHAR(255) DEFAULT NULL,
-          location VARCHAR(255) DEFAULT NULL,
-          contact_name VARCHAR(255) DEFAULT NULL,
-          contact_email VARCHAR(255) DEFAULT NULL,
-          status VARCHAR(50) DEFAULT 'ACTIVE',
+          industry VARCHAR(255) DEFAULT 'General',
+          location VARCHAR(255) DEFAULT 'N/A',
+          contact_name VARCHAR(255) DEFAULT 'N/A',
+          contact_email VARCHAR(255) NOT NULL,
+          status ENUM('ACTIVE', 'INACTIVE') DEFAULT 'ACTIVE',
+          description TEXT DEFAULT NULL,
+          joined_date DATE DEFAULT (CURRENT_DATE),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
       `);
+      try {
+        await connection.query('ALTER TABLE partners ADD COLUMN IF NOT EXISTS description TEXT DEFAULT NULL AFTER status');
+      } catch (e) {
+        console.error('Alter table partners description error:', e.message);
+      }
       const [partnerRows] = await connection.query('SELECT COUNT(*) as count FROM partners');
       if (partnerRows[0].count === 0) {
         await connection.query(`
-          INSERT INTO partners (name, joined, industry, location, contact_name, contact_email, status)
+          INSERT INTO partners (id, name, industry, location, contact_name, contact_email, status, description, joined_date)
           VALUES
-            ('Global Tech Solutions', '2025-01-15', 'Information Technology', 'Nairobi, Kenya', 'Jane Doe', 'jane.doe@globaltech.com', 'ACTIVE'),
-            ('African Retail Group', '2025-02-10', 'Retail', 'Lagos, Nigeria', 'John Smith', 'john.smith@africanretail.com', 'ACTIVE')
+            (1, 'Othieno Innocent', 'School / Education', 'Kampala', '0706920866', 'othienoinnocent21@gmail.com', 'ACTIVE', 'Empowering institutions with tailored software solutions and digital infrastructure management across Uganda.', '2026-08-08'),
+            (2, 'Global Tech Solutions', 'Software Integration', 'Nairobi', 'Sarah Jenkins', 'contact@globaltech.com', 'ACTIVE', 'Leading provider of enterprise cloud migration, IT strategy, and custom web architecture.', '2026-05-15'),
+            (3, 'African Retail Group', 'Retail & Logistics', 'Kigali', 'David Mugisha', 'info@africanretail.rw', 'ACTIVE', 'Transforming modern supply chains and point-of-sale integration for regional retail ecosystems.', '2026-07-01')
         `);
       }
     });
@@ -1349,12 +1356,13 @@ app.get('/api/partners', async (req, res) => {
     const partners = rows.map((row) => ({
       id: row.id,
       name: row.name,
-      joined: normalizeDate(row.joined),
+      joined: normalizeDate(row.joined_date),
       industry: row.industry,
       location: row.location,
       contactName: row.contact_name,
       contactEmail: row.contact_email,
       status: row.status,
+      description: row.description,
     }));
     res.json(partners);
   } catch (error) {
@@ -1363,38 +1371,85 @@ app.get('/api/partners', async (req, res) => {
   }
 });
 
+app.get('/api/partners/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query('SELECT * FROM partners WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Partner not found' });
+    }
+    const row = rows[0];
+    res.json({
+      id: row.id,
+      name: row.name,
+      joined: normalizeDate(row.joined_date),
+      industry: row.industry,
+      location: row.location,
+      contact_name: row.contact_name,
+      contact_email: row.contact_email,
+      status: row.status,
+      description: row.description,
+    });
+  } catch (error) {
+    console.error('❌ Get Partner Error:', error);
+    res.status(500).json({ message: 'Server error fetching partner details' });
+  }
+});
+
 app.post('/api/partners', async (req, res) => {
   try {
-    const { name, joined, industry, location, contactName, contactEmail, status } = req.body;
-    if (!name || !industry || !location) {
-      return res.status(400).json({ error: 'Name, industry, and location are required.' });
+    const {
+      name,
+      industry = '',
+      location = '',
+      contact_name = '',
+      contact_email = '',
+      status = 'ACTIVE',
+      description = '',
+      joined_date = new Date().toISOString().split('T')[0]
+    } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: 'Partner name is required' });
     }
+
     const [result] = await pool.query(
-      'INSERT INTO partners (name, joined, industry, location, contact_name, contact_email, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, joined || null, industry, location, contactName || null, contactEmail || null, status || 'ACTIVE']
+      'INSERT INTO partners (name, industry, location, contact_name, contact_email, status, description, joined_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, industry, location, contact_name, contact_email, status, description, joined_date]
     );
-    res.status(201).json({ id: result.insertId, name, joined: joined || null, industry, location, contactName: contactName || null, contactEmail: contactEmail || null, status: status || 'ACTIVE' });
+    res.status(201).json({ id: result.insertId, name, industry, location, contact_name, contact_email, status, description, joined_date });
   } catch (error) {
     console.error('❌ Add Partner Error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
+    res.status(500).json({ error: error.sqlMessage || 'Failed to create partner' });
   }
 });
 
 app.put('/api/partners/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, joined, industry, location, contactName, contactEmail, status } = req.body;
-    if (!name || !industry || !location) {
-      return res.status(400).json({ error: 'Name, industry, and location are required.' });
+    const {
+      name,
+      industry = '',
+      location = '',
+      contact_name = '',
+      contact_email = '',
+      status = 'ACTIVE',
+      description = '',
+      joined_date = new Date().toISOString().split('T')[0]
+    } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: 'Partner name is required' });
     }
+
     await pool.query(
-      'UPDATE partners SET name = ?, joined = ?, industry = ?, location = ?, contact_name = ?, contact_email = ?, status = ? WHERE id = ?',
-      [name, joined || null, industry, location, contactName || null, contactEmail || null, status || 'ACTIVE', id]
+      'UPDATE partners SET name = ?, industry = ?, location = ?, contact_name = ?, contact_email = ?, status = ?, description = ?, joined_date = ? WHERE id = ?',
+      [name, industry, location, contact_name, contact_email, status, description, joined_date, id]
     );
-    res.json({ id: Number(id), name, joined: joined || null, industry, location, contactName: contactName || null, contactEmail: contactEmail || null, status: status || 'ACTIVE' });
+    res.json({ id: Number(id), name, industry, location, contact_name, contact_email, status, description, joined_date });
   } catch (error) {
     console.error('❌ Update Partner Error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
+    res.status(500).json({ error: error.sqlMessage || 'Failed to update partner' });
   }
 });
 
@@ -1416,7 +1471,7 @@ app.put('/api/partners/:id/terminate', async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Partner not found.' });
     }
-    const newStatus = rows[0].status === 'TERMINATED' ? 'ACTIVE' : 'TERMINATED';
+    const newStatus = rows[0].status === 'INACTIVE' ? 'ACTIVE' : 'INACTIVE';
     await pool.query('UPDATE partners SET status = ? WHERE id = ?', [newStatus, id]);
     res.json({ success: true, id: Number(id), status: newStatus });
   } catch (error) {
