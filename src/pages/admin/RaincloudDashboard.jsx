@@ -1403,7 +1403,7 @@ export default function SatesoftApp() {
     setAdvisorFormData({
       name: '',
       roleTitle: '',
-      category: 'board',
+      category: activeTab === 'management-team' ? 'management' : 'board',
       status: 'Active',
       order: advisors.length + 1,
       message: '',

@@ -1551,9 +1551,9 @@ app.post('/api/advisors', async (req, res) => {
     }
     const [result] = await pool.query(
       'INSERT INTO advisors (first_name, last_name, role_id, role_title, advisor_order, is_active, image_url, profile_link, bio, email, expertise, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [firstName, lastName || null, roleId || 0, roleTitle || null, advisorOrder || 0, isActive ? 1 : 1, normalizeImageUrl(imageUrl), profileLink || null, bio || null, email || null, expertise || null, category || 'board']
+      [firstName, lastName || null, roleId || 0, roleTitle || null, advisorOrder || 0, isActive ? 1 : 0, normalizeImageUrl(imageUrl), profileLink || null, bio || null, email || null, expertise || null, category || 'board']
     );
-    res.status(201).json({ id: result.insertId, firstName, lastName, roleId: roleId || 0, roleTitle: roleTitle || null, order: advisorOrder || 0, isActive: isActive ? true : true, imageUrl: imageUrl || null, profileLink: profileLink || null, bio: bio || null, email: email || null, expertise: expertise || null, category: category || 'board' });
+    res.status(201).json({ id: result.insertId, firstName, lastName, roleId: roleId || 0, roleTitle: roleTitle || null, order: advisorOrder || 0, isActive: isActive ? true : false, imageUrl: imageUrl || null, profileLink: profileLink || null, bio: bio || null, email: email || null, expertise: expertise || null, category: category || 'board' });
   } catch (error) {
     console.error('❌ Add Advisor Error:', error);
     res.status(500).json({ error: 'Internal server error.' });
